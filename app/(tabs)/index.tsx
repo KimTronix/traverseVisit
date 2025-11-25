@@ -65,6 +65,22 @@ export default function HomeScreen() {
         </ThemedText>
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
+        <ThemedText type="subtitle">Authentication Pages</ThemedText>
+        <ThemedText>
+          Check out the beautiful login and signup pages:
+        </ThemedText>
+        <Link href="/login" style={styles.authLink}>
+          <ThemedText type="defaultSemiBold" style={styles.authLinkText}>
+            → Go to Login Page
+          </ThemedText>
+        </Link>
+        <Link href="/signup" style={styles.authLink}>
+          <ThemedText type="defaultSemiBold" style={styles.authLinkText}>
+            → Go to Signup Page
+          </ThemedText>
+        </Link>
+      </ThemedView>
+      <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
         <ThemedText>
           {`When you're ready, run `}
@@ -94,5 +110,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     position: 'absolute',
+  },
+  authLink: {
+    marginVertical: 4,
+  },
+  authLinkText: {
+    color: '#4ECDC4',
   },
 });
