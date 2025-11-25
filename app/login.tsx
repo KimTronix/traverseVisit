@@ -12,12 +12,13 @@ import {
     Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
+    const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -25,10 +26,14 @@ export default function LoginScreen() {
     const handleLogin = () => {
         // Handle login logic here
         console.log('Login with:', { email, password });
+        // Navigate to home page (tabs)
+        router.replace('/(tabs)');
     };
 
     const handleSocialLogin = (provider: string) => {
         console.log('Login with:', provider);
+        // Navigate to home page (tabs)
+        router.replace('/(tabs)');
     };
 
     return (
