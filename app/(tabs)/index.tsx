@@ -9,6 +9,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 // Mock data for stories
@@ -36,6 +37,8 @@ const posts = [
 ];
 
 export default function HomeScreen() {
+  const router = useRouter();
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
@@ -50,7 +53,7 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.iconButton}>
             <Ionicons name="search-outline" size={24} color="#333" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/chat')}>
             <Ionicons name="chatbubble-outline" size={24} color="#333" />
           </TouchableOpacity>
         </View>
@@ -116,7 +119,10 @@ export default function HomeScreen() {
                   <Ionicons name="paper-plane-outline" size={24} color="#333" />
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.planTripButton}>
+              <TouchableOpacity
+                style={styles.planTripButton}
+                onPress={() => router.push('/destination-map')}
+              >
                 <Ionicons name="calendar-outline" size={18} color="#333" />
                 <Text style={styles.planTripText}>Plan Trip</Text>
               </TouchableOpacity>

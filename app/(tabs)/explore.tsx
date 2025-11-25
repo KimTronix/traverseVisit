@@ -9,6 +9,7 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 const destinations = [
@@ -19,6 +20,18 @@ const destinations = [
 ];
 
 export default function ExploreScreen() {
+  const router = useRouter();
+
+  const handleDestinationPress = (destination: any) => {
+    router.push({
+      pathname: '/destination-map',
+      params: {
+        destinationId: destination.id,
+        destinationName: destination.name
+      }
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -54,7 +67,11 @@ export default function ExploreScreen() {
           <Text style={styles.sectionTitle}>Top Destinations</Text>
           <View style={styles.destinationsGrid}>
             {destinations.map((destination) => (
-              <TouchableOpacity key={destination.id} style={styles.destinationCard}>
+              <TouchableOpacity
+                key={destination.id}
+                style={styles.destinationCard}
+                onPress={() => handleDestinationPress(destination)}
+              >
                 <Image source={{ uri: destination.image }} style={styles.destinationImage} />
                 <View style={styles.destinationOverlay}>
                   <Text style={styles.destinationName}>{destination.name}</Text>
