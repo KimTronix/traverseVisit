@@ -55,8 +55,8 @@ export default function DestinationMapScreen() {
     const [searchQuery, setSearchQuery] = useState('');
 
     const handlePlanTrip = () => {
-        // Navigate to trip planning or booking
-        console.log('Plan trip to:', selectedDestination.name);
+        // Navigate to accommodation booking
+        router.push('/accommodation-booking');
     };
 
     const handleViewDetails = () => {
