@@ -54,7 +54,8 @@ export default function AccommodationBookingScreen() {
 
     const handleSendBookingRequest = (accommodation: any) => {
         console.log('Send booking request for:', accommodation.name);
-        // Navigate to booking confirmation or chat
+        // Navigate to booking confirmation
+        router.push('/confirm-booking');
     };
 
     return (

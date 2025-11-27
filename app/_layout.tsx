@@ -24,6 +24,10 @@ export default function RootLayout() {
           <Stack.Screen name="chat" options={{ headerShown: false }} />
           <Stack.Screen name="destination-map" options={{ headerShown: false }} />
           <Stack.Screen name="accommodation-booking" options={{ headerShown: false }} />
+          <Stack.Screen name="group-planning" options={{ headerShown: false }} />
+          <Stack.Screen name="wallet" options={{ headerShown: false }} />
+          <Stack.Screen name="business-registration" options={{ headerShown: false }} />
+          <Stack.Screen name="confirm-booking" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="auto" />
