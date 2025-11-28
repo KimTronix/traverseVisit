@@ -39,12 +39,14 @@ export default function BusinessRegistrationScreen() {
             businessEmail,
             contactPhone,
         });
-        // Navigate to business admin panel or success screen
+        // Navigate to provider admin dashboard
+        router.push('/provider-admin');
     };
 
     const handleLoginToAdmin = () => {
         console.log('Login to admin panel');
-        // Navigate to admin login
+        // Navigate to provider admin dashboard
+        router.push('/provider-admin');
     };
 
     return (
