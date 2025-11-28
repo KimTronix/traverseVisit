@@ -592,7 +592,7 @@ CREATE TABLE public.transactions (
     
     -- Related entities
     booking_id UUID REFERENCES public.bookings(id),
-    group_id UUID REFERENCES public.groups(id),
+    group_id UUID, -- FK constraint added later after groups table is created
     
     -- Payment details
     payment_method TEXT,
@@ -1236,7 +1236,16 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER set_booking_reference BEFORE INSERT ON public.bookings
     FOR EACH ROW EXECUTE FUNCTION generate_booking_reference();
 -- =====================================================
--- 7. INDEXES FOR PERFORMANCE
+-- 7. ADD DEFERRED FOREIGN KEY CONSTRAINTS
+-- =====================================================
+
+-- Add group_id foreign key to transactions (after groups table exists)
+ALTER TABLE public.transactions 
+ADD CONSTRAINT fk_transactions_group_id 
+FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE;
+
+-- =====================================================
+-- 8. INDEXES FOR PERFORMANCE
 -- =====================================================
 -- Full-text search indexes
 CREATE INDEX idx_users_search ON public.users USING GIN(
