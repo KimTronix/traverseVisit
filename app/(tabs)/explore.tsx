@@ -1,26 +1,41 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TextInput,
   TouchableOpacity,
   Image,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-const destinations = [
-  { id: 1, name: 'Santorini', country: 'Greece', image: 'https://images.unsplash.com/photo-1613395877344-13d4a8e0d49e?w=400&q=80' },
-  { id: 2, name: 'Bali', country: 'Indonesia', image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=400&q=80' },
-  { id: 3, name: 'Paris', country: 'France', image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&q=80' },
-  { id: 4, name: 'Tokyo', country: 'Japan', image: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&q=80' },
+const categories = ['All', 'Beach', 'Mountain', 'City', 'Adventure', 'Culture'];
+
+const allDestinations = [
+  { id: 1, name: 'Santorini', country: 'Greece', category: 'Beach', image: 'https://images.unsplash.com/photo-1613395877344-13d4a8e0d49e?w=400&q=80' },
+  { id: 2, name: 'Swiss Alps', country: 'Switzerland', category: 'Mountain', image: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=400&q=80' },
+  { id: 3, name: 'Tokyo', country: 'Japan', category: 'City', image: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&q=80' },
+  { id: 4, name: 'Bali', country: 'Indonesia', category: 'Beach', image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=400&q=80' },
+  { id: 5, name: 'Paris', country: 'France', category: 'City', image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&q=80' },
+  { id: 6, name: 'Kyoto', country: 'Japan', category: 'Culture', image: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=400&q=80' },
+  { id: 7, name: 'New Zealand', country: 'New Zealand', category: 'Adventure', image: 'https://images.unsplash.com/photo-1507699622108-4be3abd695ad?w=400&q=80' },
+  { id: 8, name: 'Maldives', country: 'Maldives', category: 'Beach', image: 'https://images.unsplash.com/photo-1514282401047-d79a71a590e8?w=400&q=80' },
 ];
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredDestinations = allDestinations.filter(dest => {
+    const matchesCategory = selectedCategory === 'All' || dest.category === selectedCategory;
+    const matchesSearch = dest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      dest.country.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   const handleDestinationPress = (destination: any) => {
     router.push({
@@ -46,17 +61,36 @@ export default function ExploreScreen() {
           style={styles.searchInput}
           placeholder="Search destinations..."
           placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
         />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close-circle" size={20} color="#999" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Categories */}
         <View style={styles.categoriesSection}>
-          <Text style={styles.sectionTitle}>Popular Categories</Text>
+          <Text style={styles.sectionTitle}>Categories</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
-            {['Beach', 'Mountain', 'City', 'Adventure', 'Culture'].map((category) => (
-              <TouchableOpacity key={category} style={styles.categoryChip}>
-                <Text style={styles.categoryText}>{category}</Text>
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.categoryChip,
+                  selectedCategory === category && styles.categoryChipActive
+                ]}
+                onPress={() => setSelectedCategory(category)}
+              >
+                <Text style={[
+                  styles.categoryText,
+                  selectedCategory === category && styles.categoryTextActive
+                ]}>
+                  {category}
+                </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -64,22 +98,32 @@ export default function ExploreScreen() {
 
         {/* Destinations Grid */}
         <View style={styles.destinationsSection}>
-          <Text style={styles.sectionTitle}>Top Destinations</Text>
-          <View style={styles.destinationsGrid}>
-            {destinations.map((destination) => (
-              <TouchableOpacity
-                key={destination.id}
-                style={styles.destinationCard}
-                onPress={() => handleDestinationPress(destination)}
-              >
-                <Image source={{ uri: destination.image }} style={styles.destinationImage} />
-                <View style={styles.destinationOverlay}>
-                  <Text style={styles.destinationName}>{destination.name}</Text>
-                  <Text style={styles.destinationCountry}>{destination.country}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Text style={styles.sectionTitle}>
+            {filteredDestinations.length} Destination{filteredDestinations.length !== 1 ? 's' : ''}
+          </Text>
+          {filteredDestinations.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="search-outline" size={48} color="#CCC" />
+              <Text style={styles.emptyText}>No destinations found</Text>
+              <Text style={styles.emptySubtext}>Try adjusting your search or filters</Text>
+            </View>
+          ) : (
+            <View style={styles.destinationsGrid}>
+              {filteredDestinations.map((destination) => (
+                <TouchableOpacity
+                  key={destination.id}
+                  style={styles.destinationCard}
+                  onPress={() => handleDestinationPress(destination)}
+                >
+                  <Image source={{ uri: destination.image }} style={styles.destinationImage} />
+                  <View style={styles.destinationOverlay}>
+                    <Text style={styles.destinationName}>{destination.name}</Text>
+                    <Text style={styles.destinationCountry}>{destination.country}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -148,13 +192,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#4ECDC4',
   },
+  categoryChipActive: {
+    backgroundColor: '#4ECDC4',
+  },
   categoryText: {
     fontSize: 14,
     fontWeight: '500',
     color: '#4ECDC4',
   },
+  categoryTextActive: {
+    color: '#FFF',
+  },
   destinationsSection: {
     paddingBottom: 24,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#999',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#CCC',
+    marginTop: 4,
   },
   destinationsGrid: {
     flexDirection: 'row',

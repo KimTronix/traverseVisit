@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import ReportPostBottomSheet from '../../components/ReportPostBottomSheet';
 
 // Mock data for stories
 const stories = [
@@ -39,23 +38,9 @@ const posts = [
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [showReportSheet, setShowReportSheet] = useState(false);
-  const [reportingPostId, setReportingPostId] = useState<number | null>(null);
-
-  const handleReportPost = (postId: number) => {
-    setReportingPostId(postId);
-    setShowReportSheet(true);
-  };
-
-  const handleSubmitReport = (reason: string) => {
-    console.log('Reporting post', reportingPostId, 'for reason:', reason);
-    // Handle report submission
-    setShowReportSheet(false);
-    setReportingPostId(null);
-  };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
       {/* Header */}
@@ -81,15 +66,19 @@ export default function HomeScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storiesScroll}>
             {stories.map((story) => (
               <View key={story.id} style={styles.storyItem}>
-                <View style={[styles.storyImageContainer, story.hasStory && styles.storyRing]}>
+                <View style={[styles.storyImageContainer, story.hasStory && styles.storyBorder]}>
                   <Image source={{ uri: story.image }} style={styles.storyImage} />
                   {story.isLive && (
                     <View style={styles.liveBadge}>
                       <Text style={styles.liveText}>LIVE</Text>
                     </View>
                   )}
+                  {story.id === 1 && (
+                    <View style={styles.addStoryButton}>
+                      <Ionicons name="add" size={16} color="#FFF" />
+                    </View>
+                  )}
                 </View>
-                <Text style={styles.storyName}>{story.name}</Text>
               </View>
             ))}
           </ScrollView>
@@ -97,20 +86,16 @@ export default function HomeScreen() {
 
         {/* Posts Feed */}
         {posts.map((post) => (
-          <View key={post.id} style={styles.postContainer}>
+          <View key={post.id} style={styles.postCard}>
             {/* Post Header */}
             <View style={styles.postHeader}>
-              <Image source={{ uri: post.userImage }} style={styles.userAvatar} />
-              <View style={styles.userInfo}>
-                <Text style={styles.username}>{post.username}</Text>
-                <Text style={styles.location}>{post.location}</Text>
+              <View style={styles.postUserInfo}>
+                <Image source={{ uri: post.userImage }} style={styles.postUserImage} />
+                <View>
+                  <Text style={styles.postUsername}>{post.username}</Text>
+                  <Text style={styles.postLocation}>{post.location}</Text>
+                </View>
               </View>
-              <TouchableOpacity
-                style={styles.menuButton}
-                onPress={() => handleReportPost(post.id)}
-              >
-                <Ionicons name="ellipsis-horizontal" size={20} color="#666" />
-              </TouchableOpacity>
               {post.isPinned && (
                 <View style={styles.pinBadge}>
                   <Ionicons name="location" size={16} color="#FF6B6B" />
@@ -154,13 +139,6 @@ export default function HomeScreen() {
           </View>
         ))}
       </ScrollView>
-
-      {/* Report Post Bottom Sheet */}
-      <ReportPostBottomSheet
-        visible={showReportSheet}
-        onClose={() => setShowReportSheet(false)}
-        onSubmit={handleSubmitReport}
-      />
     </SafeAreaView>
   );
 }
@@ -277,29 +255,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
   },
-  userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  username: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
-  location: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
-  },
-  menuButton: {
-    padding: 8,
-    marginRight: 8,
-  },
   postUserInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -319,18 +274,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 2,
-  },
-  storyRing: {
-    padding: 3,
-    borderRadius: 35,
-    borderWidth: 2,
-    borderColor: '#4ECDC4',
-  },
-  storyName: {
-    fontSize: 12,
-    color: '#333',
-    marginTop: 6,
-    textAlign: 'center',
   },
   pinBadge: {
     width: 32,

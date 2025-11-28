@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { loadProfile, saveProfile, ProfileData } from '../../utils/storage';
+import { loadProfile, saveProfile, ProfileData } from '../utils/storage';
 
 const { width } = Dimensions.get('window');
 const imageSize = (width - 48) / 3; // 3 columns with padding
@@ -39,7 +39,7 @@ const virtualTours = [
     { id: 1, image: 'https://images.unsplash.com/photo-1583422409516-2895a77efded?w=400&q=80' },
 ];
 
-export default function ProfileScreen() {
+export default function Profile() {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<'posts' | 'bucket' | 'tours'>('posts');
 
@@ -218,6 +218,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#FAFAFA',
+        width: width,
     },
     header: {
         flexDirection: 'row',
