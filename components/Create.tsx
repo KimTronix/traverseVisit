@@ -1,14 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function CreateScreen() {
+const { width } = Dimensions.get('window');
+
+export default function Create() {
     const router = useRouter();
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.content}>
                 <Ionicons name="add-circle-outline" size={80} color="#4ECDC4" />
                 <Text style={styles.title}>Create</Text>
@@ -61,6 +63,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#FAFAFA',
+        width: width,
     },
     content: {
         flex: 1,
