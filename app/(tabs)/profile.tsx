@@ -166,6 +166,15 @@ export default function ProfileScreen() {
                     <TouchableOpacity style={styles.editButton} onPress={() => router.push('/edit-profile')}>
                         <Text style={styles.editButtonText}>Edit Profile</Text>
                     </TouchableOpacity>
+
+                    {/* Become a Host Button */}
+                    <TouchableOpacity
+                        style={styles.becomeHostButton}
+                        onPress={() => router.push('/host-onboarding')}
+                    >
+                        <Ionicons name="home-outline" size={20} color="#fff" />
+                        <Text style={styles.becomeHostButtonText}>Become a Host</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Tabs */}
@@ -332,6 +341,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     editButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#FFF',
+    },
+    becomeHostButton: {
+        flexDirection: 'row',
+        backgroundColor: '#4ECDC4',
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 8,
+        gap: 8,
+    },
+    becomeHostButtonText: {
         fontSize: 14,
         fontWeight: '600',
         color: '#FFF',

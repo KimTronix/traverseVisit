@@ -35,6 +35,11 @@ export default function RootLayout() {
             <Stack.Screen name="post-details" options={{ headerShown: false }} />
             <Stack.Screen name="user-profile" options={{ headerShown: false }} />
             <Stack.Screen name="direct-message" options={{ headerShown: false }} />
+            <Stack.Screen name="host-onboarding" options={{ headerShown: false }} />
+            <Stack.Screen name="verification-pending" options={{ headerShown: false }} />
+            <Stack.Screen name="manage-listings" options={{ headerShown: false }} />
+            <Stack.Screen name="add-property/index" options={{ headerShown: false }} />
+            <Stack.Screen name="property-published" options={{ headerShown: false }} />
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <StatusBar style="auto" />
