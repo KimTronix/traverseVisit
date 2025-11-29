@@ -2,44 +2,60 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Image,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    Share,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  Share,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { useStory } from '../../contexts/StoryContext';
 import StoryViewer from '../story-viewer';
 
 // Simple DoubleTapLike component for now
-const DoubleTapLike = ({ 
-  children, 
-  onDoubleTap, 
-  initialLikes, 
-  isLiked 
-}: { 
-  children: React.ReactNode; 
+const DoubleTapLike = ({
+  children,
+  onDoubleTap,
+  onSingleTap,
+  initialLikes,
+  isLiked
+}: {
+  children: React.ReactNode;
   onDoubleTap: () => void;
+  onSingleTap?: () => void;
   initialLikes?: number;
   isLiked?: boolean;
 }) => {
   const [lastTap, setLastTap] = useState(0);
-  
+
   const handleTap = () => {
     const now = Date.now();
-    if (now - lastTap < 300) {
+    const DOUBLE_TAP_DELAY = 300;
+
+    if (now - lastTap < DOUBLE_TAP_DELAY) {
+      // Double tap detected
       onDoubleTap();
+      setLastTap(0); // Reset to prevent triple tap issues
+    } else {
+      // Single tap - wait to see if double tap follows
+      setLastTap(now);
+      if (onSingleTap) {
+        setTimeout(() => {
+          // If no second tap came within delay, trigger single tap
+          if (Date.now() - now >= DOUBLE_TAP_DELAY) {
+            onSingleTap();
+          }
+        }, DOUBLE_TAP_DELAY);
+      }
     }
-    setLastTap(now);
   };
-  
+
   return (
     <TouchableOpacity onPress={handleTap} activeOpacity={1}>
       {children}
@@ -102,7 +118,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { getUserStories, incrementStoryViews } = useStory();
   const userStories = getUserStories();
-  
+
   const [postLikes, setPostLikes] = useState<{ [key: number]: { count: number; liked: boolean } }>(
     posts.reduce((acc, post) => ({
       ...acc,
@@ -156,7 +172,7 @@ export default function HomeScreen() {
       const current = prev[postId];
       const newLiked = !current.liked;
       const newCount = newLiked ? current.count + 1 : current.count - 1;
-      
+
       return {
         ...prev,
         [postId]: { count: newCount, liked: newLiked }
@@ -175,8 +191,8 @@ export default function HomeScreen() {
 
   const handleShareOption = async (option: string) => {
     setShowShareModal(false);
-    
-    switch(option) {
+
+    switch (option) {
       case 'instagram':
         Alert.alert('Share to Instagram', 'Opening Instagram...');
         break;
@@ -227,7 +243,7 @@ export default function HomeScreen() {
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Stories Section */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.storiesSection}
           onPress={() => {
             // Check if user has stories to view
@@ -239,7 +255,7 @@ export default function HomeScreen() {
         >
           <View style={styles.storiesHeader}>
             <Text style={styles.sectionTitle}>Stories & Live</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.watchAllButton}
               onPress={() => {
                 if (userStories.length > 0) {
@@ -253,8 +269,8 @@ export default function HomeScreen() {
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storiesScroll}>
             {updatedStories.map((story) => (
-              <TouchableOpacity 
-                key={story.id} 
+              <TouchableOpacity
+                key={story.id}
                 style={[
                   styles.storyItem,
                   pressedStoryId === story.id && styles.storyItemPressed
@@ -275,7 +291,7 @@ export default function HomeScreen() {
                     </View>
                   )}
                   {story.id === 1 && (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.addStoryButton}
                       onPress={(e) => {
                         e.stopPropagation();
@@ -316,6 +332,7 @@ export default function HomeScreen() {
               initialLikes={post.likes}
               isLiked={postLikes[post.id]?.liked || false}
               onDoubleTap={() => handleLikePost(post.id)}
+              onSingleTap={() => router.push(`/post-details?id=${post.id}` as any)}
             >
               <Image source={{ uri: post.postImage }} style={styles.postImage} />
             </DoubleTapLike>
@@ -323,23 +340,23 @@ export default function HomeScreen() {
             {/* Post Actions */}
             <View style={styles.postActions}>
               <View style={styles.leftActions}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.actionButton}
                   onPress={() => handleLikePost(post.id)}
                 >
-                  <Ionicons 
-                    name={postLikes[post.id]?.liked ? "heart" : "heart-outline"} 
-                    size={26} 
-                    color={postLikes[post.id]?.liked ? "#FF3B30" : "#333"} 
+                  <Ionicons
+                    name={postLikes[post.id]?.liked ? "heart" : "heart-outline"}
+                    size={26}
+                    color={postLikes[post.id]?.liked ? "#FF3B30" : "#333"}
                   />
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.actionButton}
                   onPress={() => handleComment(post)}
                 >
                   <Ionicons name="chatbubble-outline" size={24} color="#333" />
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.actionButton}
                   onPress={() => handleShare(post)}
                 >
@@ -385,9 +402,9 @@ export default function HomeScreen() {
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.shareOptions}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.shareOption}
                 onPress={() => handleShareOption('instagram')}
               >
@@ -396,8 +413,8 @@ export default function HomeScreen() {
                 </View>
                 <Text style={styles.shareOptionText}>Instagram</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.shareOption}
                 onPress={() => handleShareOption('facebook')}
               >
@@ -406,8 +423,8 @@ export default function HomeScreen() {
                 </View>
                 <Text style={styles.shareOptionText}>Facebook</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.shareOption}
                 onPress={() => handleShareOption('twitter')}
               >
@@ -416,8 +433,8 @@ export default function HomeScreen() {
                 </View>
                 <Text style={styles.shareOptionText}>Twitter</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.shareOption}
                 onPress={() => handleShareOption('youtube')}
               >
@@ -426,8 +443,8 @@ export default function HomeScreen() {
                 </View>
                 <Text style={styles.shareOptionText}>YouTube</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.shareOption}
                 onPress={() => handleShareOption('download')}
               >
@@ -436,8 +453,8 @@ export default function HomeScreen() {
                 </View>
                 <Text style={styles.shareOptionText}>Download</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.shareOption}
                 onPress={() => handleShareOption('copy-link')}
               >
