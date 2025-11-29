@@ -40,6 +40,16 @@ export default function RootLayout() {
             <Stack.Screen name="manage-listings" options={{ headerShown: false }} />
             <Stack.Screen name="add-property/index" options={{ headerShown: false }} />
             <Stack.Screen name="property-published" options={{ headerShown: false }} />
+
+            {/* Admin Routes */}
+            <Stack.Screen name="admin/login" options={{ headerShown: false }} />
+            <Stack.Screen name="admin/dashboard" options={{ headerShown: false }} />
+            <Stack.Screen name="admin/approvals/index" options={{ headerShown: false }} />
+            <Stack.Screen name="admin/approvals/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="admin/users" options={{ headerShown: false }} />
+            <Stack.Screen name="admin/moderation" options={{ headerShown: false }} />
+            <Stack.Screen name="admin/analytics" options={{ headerShown: false }} />
+
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <StatusBar style="auto" />
