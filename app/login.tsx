@@ -1,19 +1,19 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Link, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
+    Dimensions,
     ImageBackground,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    Dimensions,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import { Link, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -66,12 +66,12 @@ export default function LoginScreen() {
                         {/* Email Input */}
                         <View style={styles.inputWrapper}>
                             <View style={styles.inputIconContainer}>
-                                <Ionicons name="mail-outline" size={20} color="#666" />
+                                <Ionicons name="mail-outline" size={20} color="rgba(255, 255, 255, 0.7)" />
                             </View>
                             <TextInput
                                 style={styles.input}
                                 placeholder="Email or Username"
-                                placeholderTextColor="#999"
+                                placeholderTextColor="rgba(255, 255, 255, 0.6)"
                                 value={email}
                                 onChangeText={setEmail}
                                 keyboardType="email-address"
@@ -82,12 +82,12 @@ export default function LoginScreen() {
                         {/* Password Input */}
                         <View style={styles.inputWrapper}>
                             <View style={styles.inputIconContainer}>
-                                <Ionicons name="lock-closed-outline" size={20} color="#666" />
+                                <Ionicons name="lock-closed-outline" size={20} color="rgba(255, 255, 255, 0.7)" />
                             </View>
                             <TextInput
                                 style={styles.input}
                                 placeholder="Password"
-                                placeholderTextColor="#999"
+                                placeholderTextColor="rgba(255, 255, 255, 0.6)"
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry={!showPassword}
@@ -100,7 +100,7 @@ export default function LoginScreen() {
                                 <Ionicons
                                     name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                                     size={20}
-                                    color="#666"
+                                    color="rgba(255, 255, 255, 0.7)"
                                 />
                             </TouchableOpacity>
                         </View>
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     },
     container: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
     },
     scrollContent: {
         flexGrow: 1,
@@ -184,6 +184,21 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 16,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 20,
+        backdropFilter: 'blur(10px)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
     },
     logoText: {
         fontSize: 24,
@@ -196,30 +211,37 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#FFFFFF',
         textAlign: 'center',
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
     },
     formContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
         borderRadius: 24,
         padding: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+        backdropFilter: 'blur(20px)',
         shadowColor: '#000',
         shadowOffset: {
             width: 0,
             height: 10,
         },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.4,
         shadowRadius: 20,
-        elevation: 10,
+        elevation: 15,
     },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
         borderRadius: 12,
         marginBottom: 16,
         paddingHorizontal: 16,
         height: 56,
         borderWidth: 1,
-        borderColor: '#E0E0E0',
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+        backdropFilter: 'blur(10px)',
     },
     inputIconContainer: {
         marginRight: 12,
@@ -227,7 +249,7 @@ const styles = StyleSheet.create({
     input: {
         flex: 1,
         fontSize: 16,
-        color: '#333',
+        color: '#FFFFFF',
     },
     eyeIcon: {
         padding: 4,
@@ -238,29 +260,38 @@ const styles = StyleSheet.create({
     },
     forgotPasswordText: {
         fontSize: 14,
-        color: '#666',
+        color: '#FFFFFF',
         textDecorationLine: 'underline',
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     loginButton: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(78, 205, 196, 0.8)',
         borderRadius: 12,
         height: 56,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 24,
-        shadowColor: '#000',
+        borderWidth: 1,
+        borderColor: 'rgba(78, 205, 196, 0.4)',
+        backdropFilter: 'blur(10px)',
+        shadowColor: '#4ECDC4',
         shadowOffset: {
             width: 0,
             height: 4,
         },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.3,
         shadowRadius: 8,
-        elevation: 4,
+        elevation: 6,
     },
     loginButtonText: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#333',
+        color: '#FFFFFF',
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     dividerContainer: {
         flexDirection: 'row',
@@ -270,13 +301,16 @@ const styles = StyleSheet.create({
     dividerLine: {
         flex: 1,
         height: 1,
-        backgroundColor: '#D0D0D0',
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
     },
     dividerText: {
         fontSize: 12,
-        color: '#666',
+        color: '#FFFFFF',
         marginHorizontal: 16,
         fontWeight: '500',
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     socialButtonsContainer: {
         flexDirection: 'row',
@@ -288,30 +322,46 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+        backdropFilter: 'blur(10px)',
         shadowColor: '#000',
         shadowOffset: {
             width: 0,
             height: 2,
         },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.2,
         shadowRadius: 4,
-        elevation: 3,
+        elevation: 4,
     },
     signUpContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 20,
+        backdropFilter: 'blur(10px)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
     },
     signUpText: {
         fontSize: 14,
-        color: '#666',
+        color: '#FFFFFF',
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     signUpLink: {
         fontSize: 14,
         color: '#4ECDC4',
         fontWeight: '600',
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
 });

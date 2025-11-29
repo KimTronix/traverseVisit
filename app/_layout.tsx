@@ -1,10 +1,11 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { StoryProvider } from '../contexts/StoryContext';
 
 export const unstable_settings = {
   // Set login as the initial route
@@ -16,24 +17,26 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="signup" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="chat" options={{ headerShown: false }} />
-          <Stack.Screen name="destination-map" options={{ headerShown: false }} />
-          <Stack.Screen name="accommodation-booking" options={{ headerShown: false }} />
-          <Stack.Screen name="group-planning" options={{ headerShown: false }} />
-          <Stack.Screen name="wallet" options={{ headerShown: false }} />
-          <Stack.Screen name="business-registration" options={{ headerShown: false }} />
-          <Stack.Screen name="confirm-booking" options={{ headerShown: false }} />
-          <Stack.Screen name="provider-admin" options={{ headerShown: false }} />
-          <Stack.Screen name="booking-requests" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        </Stack>
-        <StatusBar style="auto" />
-      </ThemeProvider>
+      <StoryProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="login" options={{ headerShown: false }} />
+            <Stack.Screen name="signup" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="chat" options={{ headerShown: false }} />
+            <Stack.Screen name="destination-map" options={{ headerShown: false }} />
+            <Stack.Screen name="accommodation-booking" options={{ headerShown: false }} />
+            <Stack.Screen name="group-planning" options={{ headerShown: false }} />
+            <Stack.Screen name="wallet" options={{ headerShown: false }} />
+            <Stack.Screen name="business-registration" options={{ headerShown: false }} />
+            <Stack.Screen name="confirm-booking" options={{ headerShown: false }} />
+            <Stack.Screen name="provider-admin" options={{ headerShown: false }} />
+            <Stack.Screen name="booking-requests" options={{ headerShown: false }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          </Stack>
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </StoryProvider>
     </SafeAreaProvider>
   );
 }
