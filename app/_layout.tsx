@@ -32,6 +32,9 @@ export default function RootLayout() {
             <Stack.Screen name="confirm-booking" options={{ headerShown: false }} />
             <Stack.Screen name="provider-admin" options={{ headerShown: false }} />
             <Stack.Screen name="booking-requests" options={{ headerShown: false }} />
+            <Stack.Screen name="post-details" options={{ headerShown: false }} />
+            <Stack.Screen name="user-profile" options={{ headerShown: false }} />
+            <Stack.Screen name="direct-message" options={{ headerShown: false }} />
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <StatusBar style="auto" />
