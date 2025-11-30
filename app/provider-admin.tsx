@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 
 // Mock provider data
 const providerData = {
@@ -41,11 +41,21 @@ export default function ProviderAdminDashboard() {
         router.push('/booking-requests');
     };
 
+    const navigation = useNavigation();
+
+    const handleBack = () => {
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+        } else {
+            router.replace('/');
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <TouchableOpacity onPress={handleBack} style={styles.backButton}>
                     <Ionicons name="chevron-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Provider Admin Dashboard</Text>
@@ -113,26 +123,6 @@ export default function ProviderAdminDashboard() {
                     ))}
                 </View>
             </ScrollView>
-
-            {/* Bottom Navigation for Provider */}
-            <View style={styles.bottomNav}>
-                <TouchableOpacity style={styles.navItem}>
-                    <Ionicons name="home" size={24} color="#0A5F5A" />
-                    <Text style={[styles.navLabel, styles.navLabelActive]}>Dashboard</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.navItem} onPress={() => router.push('/booking-requests')}>
-                    <Ionicons name="calendar-outline" size={24} color="#666" />
-                    <Text style={styles.navLabel}>Bookings</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.navItem}>
-                    <Ionicons name="list-outline" size={24} color="#666" />
-                    <Text style={styles.navLabel}>Listings</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.navItem} onPress={() => router.push('/(tabs)/profile')}>
-                    <Ionicons name="person-outline" size={24} color="#666" />
-                    <Text style={styles.navLabel}>Profile</Text>
-                </TouchableOpacity>
-            </View>
         </SafeAreaView>
     );
 }
@@ -254,27 +244,5 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '600',
         color: '#FFF',
-    },
-    bottomNav: {
-        flexDirection: 'row',
-        backgroundColor: '#FFF',
-        borderTopWidth: 1,
-        borderTopColor: '#EFEFEF',
-        paddingBottom: 8,
-        paddingTop: 8,
-    },
-    navItem: {
-        flex: 1,
-        alignItems: 'center',
-        paddingVertical: 8,
-    },
-    navLabel: {
-        fontSize: 11,
-        color: '#666',
-        marginTop: 4,
-    },
-    navLabelActive: {
-        color: '#0A5F5A',
-        fontWeight: '600',
     },
 });

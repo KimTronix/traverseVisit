@@ -11,9 +11,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { loadProfile, saveProfile, ProfileData } from '../../utils/storage';
+import { useUserMode } from '../context/UserModeContext';
 
 const { width } = Dimensions.get('window');
 const imageSize = (width - 48) / 3; // 3 columns with padding
@@ -41,6 +42,7 @@ const virtualTours = [
 
 export default function ProfileScreen() {
     const router = useRouter();
+    const { mode, toggleMode } = useUserMode();
     const [activeTab, setActiveTab] = useState<'posts' | 'bucket' | 'tours'>('posts');
 
     // Profile state
@@ -104,11 +106,26 @@ export default function ProfileScreen() {
         }
     };
 
+    const navigation = useNavigation();
+
+    const handleBack = () => {
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+        } else {
+            // If in host mode, go to dashboard. If in traveler mode, go to home.
+            if (mode === 'host') {
+                router.replace('/provider-admin');
+            } else {
+                router.replace('/(tabs)');
+            }
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <TouchableOpacity onPress={handleBack} style={styles.backButton}>
                     <Ionicons name="chevron-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>User Profile</Text>
@@ -167,13 +184,19 @@ export default function ProfileScreen() {
                         <Text style={styles.editButtonText}>Edit Profile</Text>
                     </TouchableOpacity>
 
-                    {/* Become a Host Button */}
+                    {/* Mode Switch Button */}
                     <TouchableOpacity
-                        style={styles.becomeHostButton}
-                        onPress={() => router.push('/host-onboarding')}
+                        style={[styles.modeButton, mode === 'host' ? styles.modeButtonHost : styles.modeButtonTraveler]}
+                        onPress={toggleMode}
                     >
-                        <Ionicons name="home-outline" size={20} color="#fff" />
-                        <Text style={styles.becomeHostButtonText}>Become a Host</Text>
+                        <Ionicons
+                            name={mode === 'host' ? 'airplane-outline' : 'business-outline'}
+                            size={20}
+                            color="#fff"
+                        />
+                        <Text style={styles.modeButtonText}>
+                            {mode === 'host' ? 'Switch to Traveler Mode' : 'Switch to Host Mode'}
+                        </Text>
                     </TouchableOpacity>
                 </View>
 
@@ -345,17 +368,22 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#FFF',
     },
-    becomeHostButton: {
+    modeButton: {
         flexDirection: 'row',
-        backgroundColor: '#4ECDC4',
         paddingVertical: 12,
         borderRadius: 8,
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 8,
+        marginTop: 12,
         gap: 8,
     },
-    becomeHostButtonText: {
+    modeButtonHost: {
+        backgroundColor: '#FF9800',
+    },
+    modeButtonTraveler: {
+        backgroundColor: '#0A5F5A',
+    },
+    modeButtonText: {
         fontSize: 14,
         fontWeight: '600',
         color: '#FFF',
