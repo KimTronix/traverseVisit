@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import React, { useState } from 'react';
 import {
     Alert,
@@ -232,11 +232,21 @@ export default function ManageListingsScreen() {
         </View>
     );
 
+    const navigation = useNavigation();
+
+    const handleBack = () => {
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+        } else {
+            router.replace('/provider-admin');
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <TouchableOpacity onPress={handleBack} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>My Listings</Text>

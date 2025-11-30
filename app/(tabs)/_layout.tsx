@@ -1,17 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRouter, useSegments } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Route, SceneMap, TabView } from 'react-native-tab-view';
+import { UserModeProvider, useUserMode } from '../context/UserModeContext';
 
-// Import the actual tab screens
+// Import screens
 import CreateScreen from './create';
 import ExploreScreen from './explore';
 import HomeScreen from './index';
 import MessagesScreen from './messages';
-import NotificationsScreen from './notifications';
 import ProfileScreen from './profile';
+
+// Import Host Screens
+import ProviderAdminDashboard from '../provider-admin';
+import BookingRequestsScreen from '../booking-requests';
+import ManageListingsScreen from '../manage-listings';
+import EarningsScreen from '../earnings';
 
 type TabRoute = {
   key: string;
@@ -19,28 +25,48 @@ type TabRoute = {
   icon: keyof typeof Ionicons.glyphMap;
 };
 
-export default function TabLayout() {
+function TabContent() {
   const [index, setIndex] = useState(0);
-  const navigation = useNavigation();
-  const router = useRouter();
-  const segments = useSegments();
+  const { mode } = useUserMode();
   const insets = useSafeAreaInsets();
 
-  const routes: TabRoute[] = [
+  // Reset index when mode changes to avoid out of bounds
+  useEffect(() => {
+    setIndex(0);
+  }, [mode]);
+
+  const travelerRoutes: TabRoute[] = [
     { key: 'home', title: 'Home', icon: 'home' },
     { key: 'explore', title: 'Explore', icon: 'compass' },
-    { key: 'create', title: 'Create', icon: 'add' },
+    { key: 'create', title: 'Create', icon: 'add-circle' },
     { key: 'messages', title: 'Messages', icon: 'chatbubble' },
-    { key: 'notifications', title: 'Notifications', icon: 'notifications' },
     { key: 'profile', title: 'Profile', icon: 'person' },
   ];
 
+  const hostRoutes: TabRoute[] = [
+    { key: 'dashboard', title: 'Dashboard', icon: 'stats-chart' },
+    { key: 'bookings', title: 'Bookings', icon: 'calendar' },
+    { key: 'listings', title: 'Listings', icon: 'list' },
+    { key: 'earnings', title: 'Earnings', icon: 'cash' },
+    { key: 'profile', title: 'Profile', icon: 'person' },
+  ];
+
+  const routes = mode === 'traveler' ? travelerRoutes : hostRoutes;
+
   const renderScene = SceneMap({
+    // Traveler Scenes
     home: () => <HomeScreen />,
     explore: () => <ExploreScreen />,
     create: () => <CreateScreen />,
     messages: () => <MessagesScreen />,
-    notifications: () => <NotificationsScreen />,
+
+    // Host Scenes
+    dashboard: () => <ProviderAdminDashboard />,
+    bookings: () => <BookingRequestsScreen />,
+    listings: () => <ManageListingsScreen />,
+    earnings: () => <EarningsScreen />,
+
+    // Shared
     profile: () => <ProfileScreen />,
   });
 
@@ -64,12 +90,12 @@ export default function TabLayout() {
                   size={24}
                   color={focused ? '#4ECDC4' : '#8E8E93'}
                 />
-                {route.key === 'messages' && (
+                {route.key === 'messages' && mode === 'traveler' && (
                   <View style={styles.notificationBadge}>
                     <Text style={styles.badgeText}>3</Text>
                   </View>
                 )}
-                {route.key === 'notifications' && (
+                {route.key === 'bookings' && mode === 'host' && (
                   <View style={styles.notificationBadge}>
                     <Text style={styles.badgeText}>5</Text>
                   </View>
@@ -92,11 +118,19 @@ export default function TabLayout() {
         onIndexChange={setIndex}
         renderScene={renderScene}
         renderTabBar={renderTabBar}
-        swipeEnabled={true}
+        swipeEnabled={false} // Disable swipe to prevent accidental mode confusion
         animationEnabled={true}
         tabBarPosition="bottom"
       />
     </View>
+  );
+}
+
+export default function TabLayout() {
+  return (
+    <UserModeProvider>
+      <TabContent />
+    </UserModeProvider>
   );
 }
 
