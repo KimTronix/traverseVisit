@@ -118,6 +118,10 @@ export default function BookingSuccessScreen() {
         }
     };
 
+    const handleViewAllBookings = () => {
+        router.push('/my-bookings');
+    };
+
     const handleDownloadConfirmation = () => {
         Alert.alert(
             'Download Confirmation',
@@ -140,7 +144,8 @@ export default function BookingSuccessScreen() {
     };
 
     const handleBackToHome = () => {
-        router.push('/(tabs)/index');
+        // Navigate back to the main tabs
+        router.back();
     };
 
     const handleContactHost = () => {
@@ -300,6 +305,14 @@ export default function BookingSuccessScreen() {
                     >
                         <Ionicons name="list-outline" size={20} color="#fff" />
                         <Text style={styles.primaryButtonText}>View Booking</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                        style={styles.viewAllBookingsButton}
+                        onPress={handleViewAllBookings}
+                    >
+                        <Ionicons name="calendar-outline" size={20} color="#fff" />
+                        <Text style={styles.primaryButtonText}>View All Bookings</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity 
@@ -536,6 +549,16 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         color: '#fff',
+    },
+    viewAllBookingsButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#4ECDC4',
+        paddingVertical: 16,
+        borderRadius: 12,
+        marginBottom: 12,
+        gap: 8,
     },
     secondaryButton: {
         flexDirection: 'row',
