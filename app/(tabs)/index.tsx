@@ -2,10 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  Image,
+Image,
   Modal,
-  SafeAreaView,
   ScrollView,
   Share,
   StatusBar,
@@ -14,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useStory } from '../../contexts/StoryContext';
 import StoryViewer from '../story-viewer';
@@ -503,7 +502,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 0,
   },
   logoContainer: {
     flexDirection: 'row',
@@ -535,7 +534,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 0,
   },
   storiesHeader: {
     flexDirection: 'row',
