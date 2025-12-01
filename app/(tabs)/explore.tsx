@@ -38,13 +38,8 @@ export default function ExploreScreen() {
   });
 
   const handleDestinationPress = (destination: any) => {
-    router.push({
-      pathname: '/destination-map',
-      params: {
-        destinationId: destination.id,
-        destinationName: destination.name
-      }
-    });
+    // Navigate to destination details for booking flow
+    router.push('/destination-details' as any);
   };
 
   return (

@@ -362,13 +362,17 @@ export default function HomeScreen() {
                 >
                   <Ionicons name="paper-plane-outline" size={24} color="#333" />
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => router.push('/destination-details' as any)}
+                >
+                  <Ionicons name="airplane-outline" size={24} color="#333" />
+                </TouchableOpacity>
               </View>
               <TouchableOpacity
-                style={styles.planTripButton}
-                onPress={() => router.push('/destination-map')}
+                onPress={() => router.push('/destination-details' as any)}
               >
-                <Ionicons name="calendar-outline" size={18} color="#333" />
-                <Text style={styles.planTripText}>Plan Trip</Text>
+                <Ionicons name="bookmark-outline" size={24} color="#333" />
               </TouchableOpacity>
             </View>
 
@@ -466,17 +470,17 @@ export default function HomeScreen() {
             </View>
           </View>
         </View>
-      </Modal>
+      </Modal >
 
       {/* Story Viewer */}
-      <StoryViewer
+      < StoryViewer
         visible={showStoryViewer}
         stories={userStories}
         currentIndex={currentStoryIndex}
         onClose={handleCloseStoryViewer}
         onView={handleStoryView}
       />
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }
 
@@ -729,27 +733,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  planTripButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(78, 205, 196, 0.15)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(78, 205, 196, 0.3)',
-    shadowColor: '#4ECDC4',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  planTripText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
+
   postCaption: {
     paddingHorizontal: 12,
     paddingTop: 8,

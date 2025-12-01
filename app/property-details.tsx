@@ -1,416 +1,187 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React from 'react';
 import {
-    Alert,
-    Dimensions,
+    View,
+    Text,
+    StyleSheet,
     Image,
     ScrollView,
-    Share,
-    StyleSheet,
-    Text,
     TouchableOpacity,
-    View
+    Dimensions,
+    FlatList,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-interface Property {
-    id: string;
-    name: string;
-    type: string;
-    location: string;
-    rating: number;
-    reviewCount: number;
-    pricePerNight: number;
-    images: string[];
-    description: string;
-    amenities: string[];
-    houseRules: string[];
+// Mock Property Data
+const property = {
+    id: 1,
+    title: 'Luxury Cliffside Villa with Infinity Pool',
+    location: 'Oia, Santorini',
+    rating: 4.9,
+    reviews: 128,
     host: {
-        name: string;
-        photo: string;
-        joinedDate: string;
-        isSuperhost: boolean;
-        responseRate: number;
-    };
-    reviews: Review[];
-    coordinates: {
-        lat: number;
-        lng: number;
-    };
-}
-
-interface Review {
-    id: string;
-    user: string;
-    userPhoto: string;
-    rating: number;
-    date: string;
-    comment: string;
-}
+        name: 'Elena',
+        image: 'https://i.pravatar.cc/150?img=5',
+        joined: 'Joined 2019',
+        superhost: true,
+    },
+    description:
+        'Experience the magic of Santorini from this stunning cliffside villa. Featuring a private infinity pool with breathtaking caldera views, this traditional cave house has been luxuriously renovated with modern amenities while preserving its authentic charm.',
+    price: 450,
+    images: [
+        'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=800&q=80',
+        'https://images.unsplash.com/photo-1613395877344-13d4a8e0d49e?w=800&q=80',
+        'https://images.unsplash.com/photo-1512918760513-95f1929c3d09?w=800&q=80',
+        'https://images.unsplash.com/photo-1600596542815-27b5c6b8e600?w=800&q=80',
+    ],
+    amenities: [
+        { icon: 'wifi', name: 'Fast Wifi' },
+        { icon: 'water', name: 'Pool' },
+        { icon: 'snow', name: 'AC' },
+        { icon: 'restaurant', name: 'Kitchen' },
+        { icon: 'desktop', name: 'Workspace' },
+        { icon: 'car', name: 'Parking' },
+    ],
+    rules: [
+        'Check-in: 3:00 PM - 8:00 PM',
+        'Checkout: 11:00 AM',
+        'No smoking',
+        'No parties or events',
+    ],
+};
 
 export default function PropertyDetailsScreen() {
     const router = useRouter();
-    const params = useLocalSearchParams();
-    const [loading, setLoading] = useState(false);
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    const [showAllAmenities, setShowAllAmenities] = useState(false);
-    const [showAllReviews, setShowAllReviews] = useState(false);
-    const scrollViewRef = useRef<ScrollView>(null);
 
-    // Mock property data - in real app, this would be fetched based on params.id
-    const property: Property = {
-        id: params.id as string || '1',
-        name: 'Luxury Beachfront Villa',
-        type: 'Entire villa',
-        location: 'Malibu, California',
-        rating: 4.9,
-        reviewCount: 128,
-        pricePerNight: 450,
-        images: [
-            'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800',
-            'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800',
-            'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800',
-            'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800',
-            'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800',
-        ],
-        description: 'Experience luxury living in this stunning beachfront villa with panoramic ocean views. This modern architectural masterpiece features floor-to-ceiling windows, private beach access, and a infinity pool overlooking the Pacific Ocean. Perfect for romantic getaways or family vacations.',
-        amenities: [
-            'WiFi',
-            'Kitchen',
-            'Free parking',
-            'Pool',
-            'Beach access',
-            'Air conditioning',
-            'TV',
-            'Washer',
-            'Dryer',
-            'Essentials',
-            'Hot water',
-            'Beach towels',
-            'Outdoor grill',
-            'Fire pit',
-            'Ocean view',
-            'Sun deck',
-        ],
-        houseRules: [
-            'Check-in: 3:00 PM - 8:00 PM',
-            'Checkout: 11:00 AM',
-            'No smoking',
-            'No parties',
-            'No pets',
-            'Quiet hours: 10 PM - 8 AM',
-        ],
-        host: {
-            name: 'Sarah Johnson',
-            photo: 'https://i.pravatar.cc/150?img=28',
-            joinedDate: 'January 2020',
-            isSuperhost: true,
-            responseRate: 98,
-        },
-        reviews: [
-            {
-                id: '1',
-                user: 'Michael Chen',
-                userPhoto: 'https://i.pravatar.cc/150?img=32',
-                rating: 5,
-                date: '2 weeks ago',
-                comment: 'Absolutely stunning property! The views were breathtaking and the host was incredibly responsive. Would definitely stay here again.',
-            },
-            {
-                id: '2',
-                user: 'Emma Wilson',
-                userPhoto: 'https://i.pravatar.cc/150?img=44',
-                rating: 5,
-                date: '1 month ago',
-                comment: 'Perfect weekend getaway. The villa was immaculate and had everything we needed. Beach access was a huge plus!',
-            },
-            {
-                id: '3',
-                user: 'David Martinez',
-                userPhoto: 'https://i.pravatar.cc/150?img=68',
-                rating: 4,
-                date: '2 months ago',
-                comment: 'Beautiful property with amazing views. Only minor issue was the WiFi was a bit slow, but everything else was perfect.',
-            },
-        ],
-        coordinates: {
-            lat: 34.0259,
-            lng: -118.7798,
-        },
-    };
-
-    const handleImageChange = (direction: 'prev' | 'next') => {
-        if (direction === 'prev') {
-            setCurrentImageIndex((prev) => prev === 0 ? property.images.length - 1 : prev - 1);
-        } else {
-            setCurrentImageIndex((prev) => prev === property.images.length - 1 ? 0 : prev + 1);
-        }
-    };
-
-    const handleBookNow = () => {
-        router.push({
-            pathname: '/select-dates',
-            params: {
-                propertyId: property.id,
-                destination: property.location,
-            }
-        });
-    };
-
-    const handleContactHost = () => {
-        Alert.alert('Contact Host', 'This feature will open a chat with the host. Coming soon!');
-    };
-
-    const handleShare = async () => {
-        try {
-            await Share.share({
-                message: `Check out this amazing property: ${property.name} in ${property.location}`,
-                url: `traverse://property/${property.id}`,
-            });
-        } catch (error) {
-            console.error('Error sharing:', error);
-        }
-    };
-
-    const handleViewMap = () => {
-        Alert.alert('Map View', 'This will open the map view. Coming soon!');
-    };
-
-    const renderStars = (rating: number) => {
-        const fullStars = Math.floor(rating);
-        const hasHalfStar = rating % 1 !== 0;
-        const stars = [];
-
-        for (let i = 0; i < fullStars; i++) {
-            stars.push(<Ionicons key={i} name="star" size={16} color="#FFB800" />);
-        }
-        if (hasHalfStar) {
-            stars.push(<Ionicons key="half" name="star-half" size={16} color="#FFB800" />);
-        }
-        for (let i = stars.length; i < 5; i++) {
-            stars.push(<Ionicons key={`empty-${i}`} name="star-outline" size={16} color="#FFB800" />);
-        }
-
-        return stars;
-    };
-
-    const renderAmenities = () => {
-        const amenitiesToShow = showAllAmenities ? property.amenities : property.amenities.slice(0, 8);
-        
-        return (
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Amenities</Text>
-                <View style={styles.amenitiesGrid}>
-                    {amenitiesToShow.map((amenity, index) => (
-                        <View key={index} style={styles.amenityItem}>
-                            <Ionicons name="checkmark-circle" size={20} color="#00C851" />
-                            <Text style={styles.amenityText}>{amenity}</Text>
-                        </View>
-                    ))}
-                </View>
-                {property.amenities.length > 8 && (
-                    <TouchableOpacity 
-                        style={styles.showMoreButton}
-                        onPress={() => setShowAllAmenities(!showAllAmenities)}
-                    >
-                        <Text style={styles.showMoreText}>
-                            {showAllAmenities ? 'Show less' : `Show all ${property.amenities.length} amenities`}
-                        </Text>
-                    </TouchableOpacity>
-                )}
-            </View>
-        );
-    };
-
-    const renderReviews = () => {
-        const reviewsToShow = showAllReviews ? property.reviews : property.reviews.slice(0, 2);
-        
-        return (
-            <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Reviews</Text>
-                    <View style={styles.ratingSummary}>
-                        <Text style={styles.ratingValue}>{property.rating}</Text>
-                        <View style={styles.ratingStars}>
-                            {renderStars(property.rating)}
-                        </View>
-                        <Text style={styles.reviewCount}>({property.reviewCount} reviews)</Text>
-                    </View>
-                </View>
-                
-                {reviewsToShow.map((review) => (
-                    <View key={review.id} style={styles.reviewCard}>
-                        <View style={styles.reviewHeader}>
-                            <Image source={{ uri: review.userPhoto }} style={styles.reviewUserPhoto} />
-                            <View style={styles.reviewUserInfo}>
-                                <Text style={styles.reviewUserName}>{review.user}</Text>
-                                <View style={styles.reviewRating}>
-                                    {renderStars(review.rating)}
-                                </View>
-                            </View>
-                            <Text style={styles.reviewDate}>{review.date}</Text>
-                        </View>
-                        <Text style={styles.reviewComment}>{review.comment}</Text>
-                    </View>
-                ))}
-                
-                {property.reviews.length > 2 && (
-                    <TouchableOpacity 
-                        style={styles.showMoreButton}
-                        onPress={() => setShowAllReviews(!showAllReviews)}
-                    >
-                        <Text style={styles.showMoreText}>
-                            {showAllReviews ? 'Show less' : `Show all ${property.reviews.length} reviews`}
-                        </Text>
-                    </TouchableOpacity>
-                )}
-            </View>
-        );
-    };
+    const renderImageItem = ({ item }: { item: string }) => (
+        <Image source={{ uri: item }} style={styles.galleryImage} />
+    );
 
     return (
         <View style={styles.container}>
-            <ScrollView 
-                ref={scrollViewRef}
-                style={styles.content}
-                showsVerticalScrollIndicator={false}
-            >
+            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
                 {/* Image Gallery */}
-                <View style={styles.imageGallery}>
-                    <TouchableOpacity 
-                        style={styles.imageButton}
-                        onPress={() => handleImageChange('prev')}
-                    >
-                        <Ionicons name="chevron-back" size={24} color="#fff" />
-                    </TouchableOpacity>
-                    
-                    <Image 
-                        source={{ uri: property.images[currentImageIndex] }} 
-                        style={styles.mainImage}
-                    />
-                    
-                    <TouchableOpacity 
-                        style={styles.imageButton}
-                        onPress={() => handleImageChange('next')}
-                    >
-                        <Ionicons name="chevron-forward" size={24} color="#fff" />
-                    </TouchableOpacity>
-                    
-                    <View style={styles.imageIndicator}>
-                        <Text style={styles.imageIndicatorText}>
-                            {currentImageIndex + 1} / {property.images.length}
-                        </Text>
-                    </View>
-                    
-                    <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-                        <Ionicons name="share-outline" size={20} color="#333" />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Property Info */}
-                <View style={styles.propertyInfo}>
-                    <View style={styles.propertyHeader}>
-                        <View style={styles.propertyTitleRow}>
-                            <Text style={styles.propertyName}>{property.name}</Text>
-                            <TouchableOpacity style={styles.heartButton}>
+                <View style={styles.imageContainer}>
+                    <Image source={{ uri: property.images[0] }} style={styles.mainImage} />
+                    <SafeAreaView style={styles.headerOverlay} edges={['top']}>
+                        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                            <Ionicons name="arrow-back" size={24} color="#333" />
+                        </TouchableOpacity>
+                        <View style={styles.headerActions}>
+                            <TouchableOpacity style={styles.actionButton}>
+                                <Ionicons name="share-outline" size={24} color="#333" />
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.actionButton}>
                                 <Ionicons name="heart-outline" size={24} color="#333" />
                             </TouchableOpacity>
                         </View>
-                        
-                        <View style={styles.propertyMeta}>
-                            <View style={styles.ratingContainer}>
-                                <View style={styles.ratingStars}>
-                                    {renderStars(property.rating)}
-                                </View>
-                                <Text style={styles.ratingText}>{property.rating}</Text>
-                                <Text style={styles.reviewCountText}>({property.reviewCount})</Text>
-                            </View>
-                            <Text style={styles.propertyType}>{property.type}</Text>
-                        </View>
-                        
-                        <View style={styles.locationContainer}>
-                            <Ionicons name="location" size={16} color="#666" />
-                            <Text style={styles.locationText}>{property.location}</Text>
-                        </View>
+                    </SafeAreaView>
+                    <View style={styles.imageCounter}>
+                        <Text style={styles.imageCounterText}>1 / {property.images.length}</Text>
+                    </View>
+                </View>
+
+                <View style={styles.contentContainer}>
+                    {/* Title & Location */}
+                    <Text style={styles.title}>{property.title}</Text>
+                    <Text style={styles.location}>{property.location}</Text>
+
+                    <View style={styles.ratingRow}>
+                        <Ionicons name="star" size={16} color="#FFD700" />
+                        <Text style={styles.ratingText}>{property.rating}</Text>
+                        <Text style={styles.reviewsText}>({property.reviews} reviews)</Text>
+                        {property.host.superhost && (
+                            <>
+                                <Text style={styles.dot}>•</Text>
+                                <Ionicons name="medal-outline" size={16} color="#FF6B6B" />
+                                <Text style={styles.superhostText}>Superhost</Text>
+                            </>
+                        )}
                     </View>
 
+                    <View style={styles.divider} />
+
                     {/* Host Info */}
-                    <View style={styles.hostCard}>
-                        <Image source={{ uri: property.host.photo }} style={styles.hostPhoto} />
+                    <View style={styles.hostRow}>
+                        <Image source={{ uri: property.host.image }} style={styles.hostImage} />
                         <View style={styles.hostInfo}>
                             <Text style={styles.hostName}>Hosted by {property.host.name}</Text>
-                            <Text style={styles.hostJoined}>Joined in {property.host.joinedDate}</Text>
-                            <View style={styles.hostStats}>
-                                {property.host.isSuperhost && (
-                                    <View style={styles.superhostBadge}>
-                                        <Ionicons name="star" size={12} color="#fff" />
-                                        <Text style={styles.superhostText}>Superhost</Text>
-                                    </View>
-                                )}
-                                <Text style={styles.responseRate}>
-                                    {property.host.responseRate}% response rate
-                                </Text>
-                            </View>
+                            <Text style={styles.hostJoined}>{property.host.joined}</Text>
                         </View>
-                        <TouchableOpacity style={styles.contactHostButton} onPress={handleContactHost}>
-                            <Text style={styles.contactHostText}>Contact</Text>
+                        <TouchableOpacity style={styles.messageButton}>
+                            <Ionicons name="chatbubble-outline" size={20} color="#333" />
                         </TouchableOpacity>
                     </View>
+
+                    <View style={styles.divider} />
 
                     {/* Description */}
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>About this place</Text>
-                        <Text style={styles.description}>{property.description}</Text>
+                        <Text style={styles.descriptionText}>{property.description}</Text>
                     </View>
 
-                    {/* Amenities */}
-                    {renderAmenities()}
+                    <View style={styles.divider} />
 
-                    {/* House Rules */}
+                    {/* Amenities */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>House rules</Text>
-                        <View style={styles.rulesList}>
-                            {property.houseRules.map((rule, index) => (
-                                <View key={index} style={styles.ruleItem}>
-                                    <Ionicons name="information-circle-outline" size={16} color="#666" />
-                                    <Text style={styles.ruleText}>{rule}</Text>
+                        <Text style={styles.sectionTitle}>What this place offers</Text>
+                        <View style={styles.amenitiesGrid}>
+                            {property.amenities.map((amenity, index) => (
+                                <View key={index} style={styles.amenityItem}>
+                                    <Ionicons name={amenity.icon as any} size={24} color="#666" />
+                                    <Text style={styles.amenityText}>{amenity.name}</Text>
                                 </View>
                             ))}
                         </View>
-                    </View>
-
-                    {/* Location */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Location</Text>
-                        <TouchableOpacity style={styles.mapPreview} onPress={handleViewMap}>
-                            <View style={styles.mapPlaceholder}>
-                                <Ionicons name="map" size={40} color="#ccc" />
-                                <Text style={styles.mapPlaceholderText}>Show map</Text>
-                            </View>
+                        <TouchableOpacity style={styles.showAllButton}>
+                            <Text style={styles.showAllText}>Show all amenities</Text>
                         </TouchableOpacity>
-                        <Text style={styles.locationDescription}>
-                            Located in the heart of Malibu, this villa offers easy access to beaches, restaurants, and shopping while maintaining privacy and stunning ocean views.
-                        </Text>
                     </View>
 
-                    {/* Reviews */}
-                    {renderReviews()}
+                    <View style={styles.divider} />
+
+                    {/* House Rules */}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>House Rules</Text>
+                        {property.rules.map((rule, index) => (
+                            <View key={index} style={styles.ruleItem}>
+                                <Ionicons name="alert-circle-outline" size={20} color="#666" />
+                                <Text style={styles.ruleText}>{rule}</Text>
+                            </View>
+                        ))}
+                    </View>
+
+                    {/* Map Placeholder */}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Where you'll be</Text>
+                        <View style={styles.mapPlaceholder}>
+                            <Ionicons name="map" size={48} color="#CCC" />
+                            <Text style={styles.mapText}>Map View</Text>
+                        </View>
+                    </View>
                 </View>
 
-                {/* Bottom padding for sticky button */}
                 <View style={{ height: 100 }} />
             </ScrollView>
 
-            {/* Sticky Booking Bar */}
-            <View style={styles.bookingBar}>
-                <View style={styles.priceInfo}>
-                    <Text style={styles.price}>${property.pricePerNight}</Text>
-                    <Text style={styles.priceUnit}>/ night</Text>
+            {/* Bottom Action Bar */}
+            <View style={styles.bottomBar}>
+                <View style={styles.priceContainer}>
+                    <View style={styles.priceRow}>
+                        <Text style={styles.priceValue}>${property.price}</Text>
+                        <Text style={styles.priceUnit}> / night</Text>
+                    </View>
+                    <Text style={styles.dateRange}>Oct 15 - 20</Text>
                 </View>
-                <TouchableOpacity style={styles.bookNowButton} onPress={handleBookNow}>
-                    <Text style={styles.bookNowText}>Book Now</Text>
+                <TouchableOpacity
+                    style={styles.bookButton}
+                    onPress={() => router.push('/booking-review')}
+                >
+                    <Text style={styles.bookButtonText}>Book Now</Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -420,234 +191,158 @@ export default function PropertyDetailsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: '#FFF',
     },
-    content: {
+    scrollView: {
         flex: 1,
     },
-    imageGallery: {
-        position: 'relative',
+    imageContainer: {
         height: 300,
-        backgroundColor: '#f0f0f0',
+        position: 'relative',
     },
     mainImage: {
         width: '100%',
         height: '100%',
-        resizeMode: 'cover',
     },
-    imageButton: {
+    headerOverlay: {
         position: 'absolute',
-        top: '50%',
-        transform: [{ translateY: -20 }],
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        top: 0,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingTop: 10,
+    },
+    backButton: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    imageButton: {
-        position: 'absolute',
-        top: '50%',
-        transform: [{ translateY: -20 }],
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    imageButton: {
-        left: 20,
-    },
-    imageButton: {
-        right: 20,
-    },
-    imageIndicator: {
-        position: 'absolute',
-        bottom: 20,
-        left: 20,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 16,
-    },
-    imageIndicatorText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: '500',
-    },
-    shareButton: {
-        position: 'absolute',
-        top: 20,
-        right: 20,
-        backgroundColor: '#fff',
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.9)',
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
-        elevation: 3,
+        elevation: 2,
     },
-    propertyInfo: {
+    headerActions: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    actionButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.9)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    imageCounter: {
+        position: 'absolute',
+        bottom: 20,
+        right: 20,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+    },
+    imageCounterText: {
+        color: '#FFF',
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    contentContainer: {
         padding: 20,
     },
-    propertyHeader: {
-        marginBottom: 24,
-    },
-    propertyTitleRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 12,
-    },
-    propertyName: {
+    title: {
         fontSize: 24,
-        fontWeight: '600',
+        fontWeight: '700',
         color: '#333',
-        flex: 1,
-        marginRight: 16,
-    },
-    heartButton: {
-        padding: 8,
-    },
-    propertyMeta: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
         marginBottom: 8,
+        lineHeight: 32,
     },
-    ratingContainer: {
+    location: {
+        fontSize: 16,
+        color: '#666',
+        marginBottom: 12,
+        textDecorationLine: 'underline',
+    },
+    ratingRow: {
         flexDirection: 'row',
         alignItems: 'center',
-    },
-    ratingStars: {
-        flexDirection: 'row',
-        marginRight: 4,
+        gap: 6,
+        marginBottom: 20,
     },
     ratingText: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '600',
         color: '#333',
-        marginRight: 4,
     },
-    reviewCountText: {
+    reviewsText: {
+        fontSize: 14,
+        color: '#666',
+        textDecorationLine: 'underline',
+    },
+    dot: {
         fontSize: 14,
         color: '#666',
     },
-    propertyType: {
+    superhostText: {
         fontSize: 14,
         color: '#666',
     },
-    locationContainer: {
+    divider: {
+        height: 1,
+        backgroundColor: '#F0F0F0',
+        marginVertical: 24,
+    },
+    hostRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
     },
-    locationText: {
-        fontSize: 16,
-        color: '#666',
-        marginLeft: 4,
-    },
-    hostCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f8f9fa',
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 24,
-    },
-    hostPhoto: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        marginRight: 12,
+    hostImage: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
     },
     hostInfo: {
         flex: 1,
+        marginLeft: 16,
     },
     hostName: {
         fontSize: 16,
-        fontWeight: '500',
+        fontWeight: '600',
         color: '#333',
-        marginBottom: 2,
     },
     hostJoined: {
         fontSize: 14,
         color: '#666',
-        marginBottom: 4,
+        marginTop: 2,
     },
-    hostStats: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-    },
-    superhostBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FF385C',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
-        marginRight: 8,
-    },
-    superhostText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: '500',
-        marginLeft: 4,
-    },
-    responseRate: {
-        fontSize: 12,
-        color: '#666',
-    },
-    contactHostButton: {
-        backgroundColor: '#007AFF',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+    messageButton: {
+        padding: 10,
         borderRadius: 8,
-    },
-    contactHostText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '500',
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
     },
     section: {
-        marginBottom: 32,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 8,
     },
     sectionTitle: {
         fontSize: 20,
-        fontWeight: '600',
-        color: '#333',
-    },
-    ratingSummary: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    ratingValue: {
-        fontSize: 24,
         fontWeight: '700',
         color: '#333',
-        marginRight: 8,
+        marginBottom: 16,
     },
-    ratingStars: {
-        flexDirection: 'row',
-        marginRight: 8,
-    },
-    reviewCount: {
-        fontSize: 14,
-        color: '#666',
-    },
-    description: {
+    descriptionText: {
         fontSize: 16,
         lineHeight: 24,
         color: '#333',
@@ -655,147 +350,112 @@ const styles = StyleSheet.create({
     amenitiesGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        marginHorizontal: -8,
+        gap: 16,
     },
     amenityItem: {
+        width: '45%',
         flexDirection: 'row',
         alignItems: 'center',
-        width: '50%',
-        paddingHorizontal: 8,
-        paddingVertical: 8,
+        gap: 12,
+        marginBottom: 8,
     },
     amenityText: {
-        fontSize: 14,
-        color: '#333',
-        marginLeft: 8,
-        flex: 1,
-    },
-    showMoreButton: {
-        marginTop: 16,
-        alignSelf: 'flex-start',
-    },
-    showMoreText: {
         fontSize: 16,
-        color: '#007AFF',
-        fontWeight: '500',
+        color: '#333',
     },
-    rulesList: {
-        backgroundColor: '#f8f9fa',
-        borderRadius: 12,
-        padding: 4,
+    showAllButton: {
+        marginTop: 16,
+        paddingVertical: 12,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#333',
+        alignItems: 'center',
+    },
+    showAllText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#333',
     },
     ruleItem: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
-        padding: 12,
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 12,
     },
     ruleText: {
-        fontSize: 14,
+        fontSize: 16,
         color: '#333',
-        marginLeft: 8,
-        flex: 1,
-        lineHeight: 20,
-    },
-    mapPreview: {
-        borderRadius: 12,
-        overflow: 'hidden',
-        marginBottom: 12,
     },
     mapPlaceholder: {
         height: 200,
-        backgroundColor: '#f0f0f0',
+        backgroundColor: '#F5F5F5',
+        borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
     },
-    mapPlaceholderText: {
-        fontSize: 16,
-        color: '#999',
+    mapText: {
         marginTop: 8,
-    },
-    locationDescription: {
-        fontSize: 14,
-        lineHeight: 20,
-        color: '#666',
-    },
-    reviewCard: {
-        backgroundColor: '#f8f9fa',
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 12,
-    },
-    reviewHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    reviewUserPhoto: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        marginRight: 12,
-    },
-    reviewUserInfo: {
-        flex: 1,
-    },
-    reviewUserName: {
+        color: '#999',
         fontSize: 16,
-        fontWeight: '500',
-        color: '#333',
-        marginBottom: 2,
     },
-    reviewRating: {
-        flexDirection: 'row',
-    },
-    reviewDate: {
-        fontSize: 12,
-        color: '#666',
-    },
-    reviewComment: {
-        fontSize: 14,
-        lineHeight: 20,
-        color: '#333',
-    },
-    bookingBar: {
+    bottomBar: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
+        backgroundColor: '#FFF',
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        paddingBottom: 30,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: 20,
-        backgroundColor: '#fff',
         borderTopWidth: 1,
-        borderTopColor: '#f0f0f0',
+        borderTopColor: '#F0F0F0',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
+        shadowOffset: { width: 0, height: -4 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowRadius: 10,
         elevation: 10,
     },
-    priceInfo: {
+    priceContainer: {
+        flex: 1,
+    },
+    priceRow: {
         flexDirection: 'row',
         alignItems: 'baseline',
     },
-    price: {
-        fontSize: 24,
-        fontWeight: '600',
+    priceValue: {
+        fontSize: 20,
+        fontWeight: '700',
         color: '#333',
     },
     priceUnit: {
         fontSize: 16,
+        color: '#333',
+    },
+    dateRange: {
+        fontSize: 14,
         color: '#666',
-        marginLeft: 4,
+        textDecorationLine: 'underline',
+        marginTop: 2,
     },
-    bookNowButton: {
-        backgroundColor: '#007AFF',
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 8,
+    bookButton: {
+        backgroundColor: '#FF3B30',
+        paddingHorizontal: 32,
+        paddingVertical: 14,
+        borderRadius: 12,
+        shadowColor: '#FF3B30',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
     },
-    bookNowText: {
-        color: '#fff',
+    bookButtonText: {
+        color: '#FFF',
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: '700',
     },
 });

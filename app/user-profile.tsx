@@ -1,230 +1,241 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    FlatList,
-    Image,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
     View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    Image,
+    FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const { width } = Dimensions.get('window');
-const GRID_ITEM_SIZE = (width - 6) / 3;
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 // Mock user data
-const mockUser = {
-    username: 'traveler_jane',
-    fullName: 'Jane Anderson',
-    avatar: 'https://i.pravatar.cc/300?img=1',
+const userData = {
+    id: '123',
+    name: 'Sarah Johnson',
+    username: '@sarahj',
+    avatar: 'https://i.pravatar.cc/150?img=1',
+    coverImage: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80',
     bio: '✈️ Travel enthusiast | 📸 Photography lover | 🌍 Exploring the world one destination at a time',
-    location: 'New York, USA',
-    website: 'www.janestravel.com',
-    postsCount: 127,
-    followersCount: 12500,
-    followingCount: 892,
+    location: 'San Francisco, CA',
+    website: 'sarahjohnson.com',
+    joinedDate: 'Joined March 2022',
+    stats: {
+        posts: 248,
+        followers: 1542,
+        following: 892,
+    },
     isFollowing: false,
-    isVerified: true,
+    posts: [
+        {
+            id: '1',
+            image: 'https://images.unsplash.com/photo-1613395877344-13d4a8e0d49e?w=400&q=80',
+            likes: 324,
+        },
+        {
+            id: '2',
+            image: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=400&q=80',
+            likes: 256,
+        },
+        {
+            id: '3',
+            image: 'https://images.unsplash.com/photo-1533105079780-92b9be482077?w=400&q=80',
+            likes: 189,
+        },
+        {
+            id: '4',
+            image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&q=80',
+            likes: 412,
+        },
+        {
+            id: '5',
+            image: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=400&q=80',
+            likes: 298,
+        },
+        {
+            id: '6',
+            image: 'https://images.unsplash.com/photo-1514282401047-d79a71a590e8?w=400&q=80',
+            likes: 367,
+        },
+    ],
 };
-
-// Mock posts grid
-const mockPosts = Array.from({ length: 18 }, (_, i) => ({
-    id: i + 1,
-    image: `https://picsum.photos/400/400?random=${i + 1}`,
-    likes: Math.floor(Math.random() * 1000) + 100,
-    comments: Math.floor(Math.random() * 100) + 10,
-}));
 
 export default function UserProfileScreen() {
     const router = useRouter();
-    const params = useLocalSearchParams();
-    const username = params.username;
-
-    const [isFollowing, setIsFollowing] = useState(mockUser.isFollowing);
-    const [followersCount, setFollowersCount] = useState(mockUser.followersCount);
-    const [refreshing, setRefreshing] = useState(false);
-    const [activeTab, setActiveTab] = useState<'posts' | 'saved'>('posts');
+    const [activeTab, setActiveTab] = useState<'posts' | 'reviews' | 'about'>('posts');
+    const [isFollowing, setIsFollowing] = useState(userData.isFollowing);
 
     const handleFollow = () => {
         setIsFollowing(!isFollowing);
-        setFollowersCount(isFollowing ? followersCount - 1 : followersCount + 1);
     };
-
-    const handleMessage = () => {
-        router.push(`/direct-message?username=${username}`);
-    };
-
-    const handleRefresh = () => {
-        setRefreshing(true);
-        // Simulate refresh
-        setTimeout(() => setRefreshing(false), 1000);
-    };
-
-    const handlePostPress = (postId: number) => {
-        router.push(`/post-details?id=${postId}`);
-    };
-
-    const renderHeader = () => (
-        <View>
-            {/* Profile Info */}
-            <View style={styles.profileSection}>
-                <View style={styles.profileHeader}>
-                    <Image source={{ uri: mockUser.avatar }} style={styles.avatar} />
-                    <View style={styles.statsContainer}>
-                        <View style={styles.statItem}>
-                            <Text style={styles.statNumber}>{mockUser.postsCount}</Text>
-                            <Text style={styles.statLabel}>Posts</Text>
-                        </View>
-                        <TouchableOpacity style={styles.statItem}>
-                            <Text style={styles.statNumber}>
-                                {followersCount >= 1000
-                                    ? `${(followersCount / 1000).toFixed(1)}K`
-                                    : followersCount}
-                            </Text>
-                            <Text style={styles.statLabel}>Followers</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.statItem}>
-                            <Text style={styles.statNumber}>{mockUser.followingCount}</Text>
-                            <Text style={styles.statLabel}>Following</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                <View style={styles.profileInfo}>
-                    <View style={styles.nameRow}>
-                        <Text style={styles.fullName}>{mockUser.fullName}</Text>
-                        {mockUser.isVerified && (
-                            <Ionicons name="checkmark-circle" size={18} color="#4ECDC4" />
-                        )}
-                    </View>
-                    <Text style={styles.bio}>{mockUser.bio}</Text>
-                    <View style={styles.detailsRow}>
-                        <Ionicons name="location-outline" size={16} color="#666" />
-                        <Text style={styles.detailText}>{mockUser.location}</Text>
-                    </View>
-                    {mockUser.website && (
-                        <View style={styles.detailsRow}>
-                            <Ionicons name="link-outline" size={16} color="#666" />
-                            <Text style={[styles.detailText, styles.linkText]}>
-                                {mockUser.website}
-                            </Text>
-                        </View>
-                    )}
-                </View>
-
-                {/* Action Buttons */}
-                <View style={styles.actionsContainer}>
-                    <TouchableOpacity
-                        style={[
-                            styles.actionButton,
-                            styles.primaryButton,
-                            isFollowing && styles.followingButton,
-                        ]}
-                        onPress={handleFollow}
-                    >
-                        <Text
-                            style={[
-                                styles.actionButtonText,
-                                isFollowing && styles.followingButtonText,
-                            ]}
-                        >
-                            {isFollowing ? 'Following' : 'Follow'}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.actionButton, styles.secondaryButton]}
-                        onPress={handleMessage}
-                    >
-                        <Ionicons name="chatbubble-outline" size={18} color="#333" />
-                        <Text style={styles.secondaryButtonText}>Message</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.iconButton}>
-                        <Ionicons name="ellipsis-horizontal" size={20} color="#333" />
-                    </TouchableOpacity>
-                </View>
-            </View>
-
-            {/* Tabs */}
-            <View style={styles.tabsContainer}>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
-                    onPress={() => setActiveTab('posts')}
-                >
-                    <Ionicons
-                        name="grid-outline"
-                        size={24}
-                        color={activeTab === 'posts' ? '#4ECDC4' : '#999'}
-                    />
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'saved' && styles.activeTab]}
-                    onPress={() => setActiveTab('saved')}
-                >
-                    <Ionicons
-                        name="bookmark-outline"
-                        size={24}
-                        color={activeTab === 'saved' ? '#4ECDC4' : '#999'}
-                    />
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
 
     const renderPost = ({ item }: { item: any }) => (
-        <TouchableOpacity
-            style={styles.gridItem}
-            onPress={() => handlePostPress(item.id)}
-            activeOpacity={0.8}
-        >
-            <Image source={{ uri: item.image }} style={styles.gridImage} />
-            <View style={styles.gridOverlay}>
-                <View style={styles.gridStat}>
-                    <Ionicons name="heart" size={18} color="#fff" />
-                    <Text style={styles.gridStatText}>{item.likes}</Text>
-                </View>
-                <View style={styles.gridStat}>
-                    <Ionicons name="chatbubble" size={18} color="#fff" />
-                    <Text style={styles.gridStatText}>{item.comments}</Text>
-                </View>
+        <TouchableOpacity style={styles.postItem}>
+            <Image source={{ uri: item.image }} style={styles.postImage} />
+            <View style={styles.postOverlay}>
+                <Ionicons name="heart" size={16} color="#FFF" />
+                <Text style={styles.postLikes}>{item.likes}</Text>
             </View>
         </TouchableOpacity>
     );
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#333" />
+                    <Ionicons name="chevron-back" size={24} color="#333" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>{mockUser.username}</Text>
-                <TouchableOpacity style={styles.shareButton}>
-                    <Ionicons name="share-outline" size={24} color="#333" />
+                <Text style={styles.headerTitle}>{userData.username}</Text>
+                <TouchableOpacity style={styles.moreButton}>
+                    <Ionicons name="ellipsis-horizontal" size={24} color="#333" />
                 </TouchableOpacity>
             </View>
 
-            {/* Content */}
-            <FlatList
-                data={mockPosts}
-                renderItem={renderPost}
-                keyExtractor={(item) => item.id.toString()}
-                numColumns={3}
-                ListHeaderComponent={renderHeader}
-                columnWrapperStyle={styles.gridRow}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={handleRefresh}
-                        tintColor="#4ECDC4"
+            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+                {/* Cover Image */}
+                <Image source={{ uri: userData.coverImage }} style={styles.coverImage} />
+
+                {/* Profile Info */}
+                <View style={styles.profileSection}>
+                    <Image source={{ uri: userData.avatar }} style={styles.avatar} />
+
+                    <Text style={styles.name}>{userData.name}</Text>
+                    <Text style={styles.username}>{userData.username}</Text>
+
+                    {userData.bio && <Text style={styles.bio}>{userData.bio}</Text>}
+
+                    <View style={styles.metaInfo}>
+                        {userData.location && (
+                            <View style={styles.metaItem}>
+                                <Ionicons name="location-outline" size={16} color="#666" />
+                                <Text style={styles.metaText}>{userData.location}</Text>
+                            </View>
+                        )}
+                        {userData.website && (
+                            <View style={styles.metaItem}>
+                                <Ionicons name="link-outline" size={16} color="#666" />
+                                <Text style={styles.metaText}>{userData.website}</Text>
+                            </View>
+                        )}
+                        <View style={styles.metaItem}>
+                            <Ionicons name="calendar-outline" size={16} color="#666" />
+                            <Text style={styles.metaText}>{userData.joinedDate}</Text>
+                        </View>
+                    </View>
+
+                    {/* Stats */}
+                    <View style={styles.statsRow}>
+                        <View style={styles.statItem}>
+                            <Text style={styles.statValue}>{userData.stats.posts}</Text>
+                            <Text style={styles.statLabel}>Posts</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <TouchableOpacity style={styles.statItem}>
+                            <Text style={styles.statValue}>{userData.stats.followers}</Text>
+                            <Text style={styles.statLabel}>Followers</Text>
+                        </TouchableOpacity>
+                        <View style={styles.statDivider} />
+                        <TouchableOpacity style={styles.statItem}>
+                            <Text style={styles.statValue}>{userData.stats.following}</Text>
+                            <Text style={styles.statLabel}>Following</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Action Buttons */}
+                    <View style={styles.actionButtons}>
+                        <TouchableOpacity
+                            style={[styles.followButton, isFollowing && styles.followingButton]}
+                            onPress={handleFollow}
+                        >
+                            <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
+                                {isFollowing ? 'Following' : 'Follow'}
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.messageButton}
+                            onPress={() => router.push('/conversation' as any)}
+                        >
+                            <Ionicons name="chatbubble-outline" size={20} color="#333" />
+                            <Text style={styles.messageButtonText}>Message</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Tabs */}
+                <View style={styles.tabsContainer}>
+                    <TouchableOpacity
+                        style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
+                        onPress={() => setActiveTab('posts')}
+                    >
+                        <Ionicons
+                            name="grid-outline"
+                            size={20}
+                            color={activeTab === 'posts' ? '#333' : '#999'}
+                        />
+                        <Text style={[styles.tabText, activeTab === 'posts' && styles.activeTabText]}>
+                            Posts
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tab, activeTab === 'reviews' && styles.activeTab]}
+                        onPress={() => setActiveTab('reviews')}
+                    >
+                        <Ionicons
+                            name="star-outline"
+                            size={20}
+                            color={activeTab === 'reviews' ? '#333' : '#999'}
+                        />
+                        <Text style={[styles.tabText, activeTab === 'reviews' && styles.activeTabText]}>
+                            Reviews
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tab, activeTab === 'about' && styles.activeTab]}
+                        onPress={() => setActiveTab('about')}
+                    >
+                        <Ionicons
+                            name="information-circle-outline"
+                            size={20}
+                            color={activeTab === 'about' ? '#333' : '#999'}
+                        />
+                        <Text style={[styles.tabText, activeTab === 'about' && styles.activeTabText]}>
+                            About
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Tab Content */}
+                {activeTab === 'posts' && (
+                    <FlatList
+                        data={userData.posts}
+                        renderItem={renderPost}
+                        keyExtractor={(item) => item.id}
+                        numColumns={3}
+                        scrollEnabled={false}
+                        contentContainerStyle={styles.postsGrid}
                     />
-                }
-            />
+                )}
+
+                {activeTab === 'reviews' && (
+                    <View style={styles.emptyState}>
+                        <Ionicons name="star-outline" size={48} color="#CCC" />
+                        <Text style={styles.emptyText}>No reviews yet</Text>
+                    </View>
+                )}
+
+                {activeTab === 'about' && (
+                    <View style={styles.aboutSection}>
+                        <Text style={styles.aboutText}>
+                            Passionate traveler exploring the world and sharing experiences. Love discovering
+                            hidden gems and connecting with fellow adventurers.
+                        </Text>
+                    </View>
+                )}
+            </ScrollView>
         </SafeAreaView>
     );
 }
@@ -232,7 +243,7 @@ export default function UserProfileScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFAFA',
+        backgroundColor: '#FFF',
     },
     header: {
         flexDirection: 'row',
@@ -240,7 +251,6 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: '#fff',
         borderBottomWidth: 1,
         borderBottomColor: '#EFEFEF',
     },
@@ -248,176 +258,206 @@ const styles = StyleSheet.create({
         padding: 4,
     },
     headerTitle: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '600',
         color: '#333',
     },
-    shareButton: {
+    moreButton: {
         padding: 4,
     },
-    profileSection: {
-        backgroundColor: '#fff',
-        paddingHorizontal: 16,
-        paddingTop: 16,
-        paddingBottom: 12,
+    content: {
+        flex: 1,
     },
-    profileHeader: {
-        flexDirection: 'row',
+    coverImage: {
+        width: '100%',
+        height: 150,
+        backgroundColor: '#F0F0F0',
+    },
+    profileSection: {
         alignItems: 'center',
-        marginBottom: 16,
+        paddingHorizontal: 20,
+        paddingBottom: 20,
     },
     avatar: {
-        width: 90,
-        height: 90,
-        borderRadius: 45,
-        marginRight: 20,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        marginTop: -50,
+        borderWidth: 4,
+        borderColor: '#FFF',
     },
-    statsContainer: {
-        flex: 1,
+    name: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: '#333',
+        marginTop: 12,
+    },
+    username: {
+        fontSize: 14,
+        color: '#666',
+        marginTop: 4,
+    },
+    bio: {
+        fontSize: 14,
+        color: '#333',
+        textAlign: 'center',
+        marginTop: 12,
+        lineHeight: 20,
+    },
+    metaInfo: {
+        marginTop: 12,
+        gap: 8,
+    },
+    metaItem: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
+        alignItems: 'center',
+        gap: 6,
+    },
+    metaText: {
+        fontSize: 13,
+        color: '#666',
+    },
+    statsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 20,
+        paddingVertical: 16,
+        borderTopWidth: 1,
+        borderBottomWidth: 1,
+        borderColor: '#F0F0F0',
+        width: '100%',
     },
     statItem: {
+        flex: 1,
         alignItems: 'center',
     },
-    statNumber: {
+    statDivider: {
+        width: 1,
+        height: 30,
+        backgroundColor: '#F0F0F0',
+    },
+    statValue: {
         fontSize: 18,
-        fontWeight: '600',
+        fontWeight: '700',
         color: '#333',
     },
     statLabel: {
         fontSize: 13,
         color: '#666',
-        marginTop: 2,
-    },
-    profileInfo: {
-        marginBottom: 16,
-    },
-    nameRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginBottom: 6,
-    },
-    fullName: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#333',
-    },
-    bio: {
-        fontSize: 14,
-        color: '#333',
-        lineHeight: 20,
-        marginBottom: 8,
-    },
-    detailsRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
         marginTop: 4,
     },
-    detailText: {
-        fontSize: 13,
-        color: '#666',
-    },
-    linkText: {
-        color: '#4ECDC4',
-    },
-    actionsContainer: {
+    actionButtons: {
         flexDirection: 'row',
-        gap: 8,
+        gap: 12,
+        marginTop: 20,
+        width: '100%',
     },
-    actionButton: {
+    followButton: {
         flex: 1,
-        paddingVertical: 10,
+        backgroundColor: '#4ECDC4',
+        paddingVertical: 12,
         borderRadius: 8,
         alignItems: 'center',
-        justifyContent: 'center',
-    },
-    primaryButton: {
-        backgroundColor: '#4ECDC4',
     },
     followingButton: {
-        backgroundColor: '#f0f0f0',
-        borderWidth: 1,
-        borderColor: '#ddd',
+        backgroundColor: '#F0F0F0',
     },
-    actionButtonText: {
-        fontSize: 15,
+    followButtonText: {
+        fontSize: 16,
         fontWeight: '600',
-        color: '#fff',
+        color: '#FFF',
     },
     followingButtonText: {
         color: '#333',
     },
-    secondaryButton: {
+    messageButton: {
+        flex: 1,
         flexDirection: 'row',
-        gap: 6,
-        backgroundColor: '#f0f0f0',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#F0F0F0',
+        paddingVertical: 12,
+        borderRadius: 8,
     },
-    secondaryButtonText: {
-        fontSize: 15,
+    messageButtonText: {
+        fontSize: 16,
         fontWeight: '600',
         color: '#333',
     },
-    iconButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 8,
-        backgroundColor: '#f0f0f0',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
     tabsContainer: {
         flexDirection: 'row',
-        backgroundColor: '#fff',
         borderBottomWidth: 1,
-        borderBottomColor: '#EFEFEF',
+        borderBottomColor: '#F0F0F0',
+        marginTop: 8,
     },
     tab: {
         flex: 1,
-        paddingVertical: 12,
+        flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        paddingVertical: 14,
         borderBottomWidth: 2,
         borderBottomColor: 'transparent',
     },
     activeTab: {
-        borderBottomColor: '#4ECDC4',
+        borderBottomColor: '#333',
     },
-    gridRow: {
-        gap: 2,
+    tabText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#999',
     },
-    gridItem: {
-        width: GRID_ITEM_SIZE,
-        height: GRID_ITEM_SIZE,
-        position: 'relative',
-        marginBottom: 2,
+    activeTabText: {
+        color: '#333',
+        fontWeight: '600',
     },
-    gridImage: {
+    postsGrid: {
+        padding: 2,
+    },
+    postItem: {
+        width: '33.33%',
+        aspectRatio: 1,
+        padding: 2,
+    },
+    postImage: {
         width: '100%',
         height: '100%',
+        backgroundColor: '#F0F0F0',
     },
-    gridOverlay: {
+    postOverlay: {
         position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.3)',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 16,
-        opacity: 0,
-    },
-    gridStat: {
+        top: 8,
+        right: 8,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
     },
-    gridStatText: {
-        fontSize: 14,
+    postLikes: {
+        fontSize: 12,
         fontWeight: '600',
-        color: '#fff',
+        color: '#FFF',
+    },
+    emptyState: {
+        alignItems: 'center',
+        paddingVertical: 60,
+    },
+    emptyText: {
+        fontSize: 16,
+        color: '#999',
+        marginTop: 12,
+    },
+    aboutSection: {
+        padding: 20,
+    },
+    aboutText: {
+        fontSize: 14,
+        color: '#666',
+        lineHeight: 22,
     },
 });

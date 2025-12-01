@@ -1,257 +1,178 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
     StyleSheet,
-    TextInput,
+    ScrollView,
     TouchableOpacity,
     Image,
-    ScrollView,
+    TextInput,
     Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { saveProfile, loadProfile, ProfileData } from '../utils/storage';
+import { useRouter } from 'expo-router';
 
 export default function EditProfileScreen() {
     const router = useRouter();
-    const [loading, setLoading] = useState(false);
-    const [saving, setSaving] = useState(false);
+    const [name, setName] = useState('Alex Rivera');
+    const [username, setUsername] = useState('alexr');
+    const [bio, setBio] = useState('✈️ Travel enthusiast | 📸 Photography lover | 🌍 Exploring the world');
+    const [location, setLocation] = useState('San Francisco, CA');
+    const [website, setWebsite] = useState('alexrivera.com');
+    const [email, setEmail] = useState('alex@example.com');
+    const [phone, setPhone] = useState('+1 (555) 123-4567');
 
-    // Form state
-    const [profileImage, setProfileImage] = useState<string>('https://i.pravatar.cc/150?img=12');
-    const [name, setName] = useState('');
-    const [bio, setBio] = useState('');
-    const [location, setLocation] = useState('');
-
-    const MAX_BIO_LENGTH = 150;
-
-    // Load existing profile on mount
-    useEffect(() => {
-        loadExistingProfile();
-    }, []);
-
-    const loadExistingProfile = async () => {
-        setLoading(true);
-        try {
-            const profile = await loadProfile();
-            if (profile) {
-                setName(profile.name);
-                setBio(profile.bio);
-                setLocation(profile.location);
-                if (profile.profileImage) {
-                    setProfileImage(profile.profileImage);
-                }
-            } else {
-                // Set defaults if no profile exists
-                setName('Alex Travels');
-                setBio('Adventure seeker & travel photographer.\\nSharing the world one photo at a time.');
-                setLocation('📍 Based in London');
-            }
-        } catch (error) {
-            console.error('Error loading profile:', error);
-        } finally {
-            setLoading(false);
-        }
+    const handleSave = () => {
+        Alert.alert('Success', 'Profile updated successfully!', [
+            { text: 'OK', onPress: () => router.back() },
+        ]);
     };
-
-    // Request permissions
-    const requestPermissions = async () => {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Please grant photo library access to select images.');
-            return false;
-        }
-        return true;
-    };
-
-    const requestCameraPermissions = async () => {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Please grant camera access to take photos.');
-            return false;
-        }
-        return true;
-    };
-
-    // Pick image from gallery
-    const pickImageFromGallery = async () => {
-        const hasPermission = await requestPermissions();
-        if (!hasPermission) return;
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-        });
-
-        if (!result.canceled && result.assets[0]) {
-            setProfileImage(result.assets[0].uri);
-        }
-    };
-
-    // Take photo with camera
-    const takePhoto = async () => {
-        const hasPermission = await requestCameraPermissions();
-        if (!hasPermission) return;
-
-        const result = await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-        });
-
-        if (!result.canceled && result.assets[0]) {
-            setProfileImage(result.assets[0].uri);
-        }
-    };
-
-    // Show image picker options
-    const showImagePickerOptions = () => {
-        Alert.alert(
-            'Update Profile Picture',
-            'Choose an option',
-            [
-                { text: 'Take Photo', onPress: takePhoto },
-                { text: 'Choose from Library', onPress: pickImageFromGallery },
-                { text: 'Cancel', style: 'cancel' },
-            ],
-            { cancelable: true }
-        );
-    };
-
-    // Save profile
-    const handleSave = async () => {
-        if (!name.trim()) {
-            Alert.alert('Error', 'Please enter your name');
-            return;
-        }
-
-        setSaving(true);
-        try {
-            const existingProfile = await loadProfile();
-            const profileData: ProfileData = {
-                name: name.trim(),
-                username: existingProfile?.username || '@alextravels',
-                bio: bio.trim(),
-                location: location.trim(),
-                profileImage: profileImage,
-                followers: existingProfile?.followers || '1.5k',
-                following: existingProfile?.following || 800,
-                posts: existingProfile?.posts || 250,
-            };
-
-            await saveProfile(profileData);
-            Alert.alert('Success', 'Profile updated successfully!', [
-                { text: 'OK', onPress: () => router.back() }
-            ]);
-        } catch (error) {
-            console.error('Error saving profile:', error);
-            Alert.alert('Error', 'Failed to save profile. Please try again.');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#4ECDC4" />
-                </View>
-            </SafeAreaView>
-        );
-    }
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="close" size={28} color="#333" />
+                <TouchableOpacity onPress={() => router.back()} style={styles.cancelButton}>
+                    <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Edit Profile</Text>
-                <TouchableOpacity onPress={handleSave} disabled={saving}>
-                    {saving ? (
-                        <ActivityIndicator size="small" color="#4ECDC4" />
-                    ) : (
-                        <Text style={styles.saveButton}>Save</Text>
-                    )}
+                <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
+                    <Text style={styles.saveText}>Save</Text>
                 </TouchableOpacity>
             </View>
 
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardView}
-            >
-                <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                    {/* Profile Picture Section */}
-                    <View style={styles.imageSection}>
-                        <Image source={{ uri: profileImage }} style={styles.profileImage} />
-                        <TouchableOpacity style={styles.changePhotoButton} onPress={showImagePickerOptions}>
-                            <Ionicons name="camera" size={24} color="#4ECDC4" />
-                            <Text style={styles.changePhotoText}>Change Photo</Text>
+            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+                {/* Profile Photo */}
+                <View style={styles.photoSection}>
+                    <Image
+                        source={{ uri: 'https://i.pravatar.cc/150?img=2' }}
+                        style={styles.profilePhoto}
+                    />
+                    <TouchableOpacity style={styles.changePhotoButton}>
+                        <Text style={styles.changePhotoText}>Change Photo</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Form Fields */}
+                <View style={styles.formSection}>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Name</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={name}
+                            onChangeText={setName}
+                            placeholder="Enter your name"
+                        />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Username</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={username}
+                            onChangeText={setUsername}
+                            placeholder="Enter username"
+                            autoCapitalize="none"
+                        />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Bio</Text>
+                        <TextInput
+                            style={[styles.input, styles.textArea]}
+                            value={bio}
+                            onChangeText={setBio}
+                            placeholder="Tell us about yourself"
+                            multiline
+                            numberOfLines={4}
+                        />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Location</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={location}
+                            onChangeText={setLocation}
+                            placeholder="City, Country"
+                        />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Website</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={website}
+                            onChangeText={setWebsite}
+                            placeholder="yourwebsite.com"
+                            autoCapitalize="none"
+                            keyboardType="url"
+                        />
+                    </View>
+
+                    <View style={styles.divider} />
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Email</Text>
+                        <View style={styles.verifiedInput}>
+                            <TextInput
+                                style={[styles.input, { flex: 1 }]}
+                                value={email}
+                                onChangeText={setEmail}
+                                placeholder="email@example.com"
+                                autoCapitalize="none"
+                                keyboardType="email-address"
+                            />
+                            <View style={styles.verifiedBadge}>
+                                <Ionicons name="checkmark-circle" size={20} color="#4ECDC4" />
+                                <Text style={styles.verifiedText}>Verified</Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Phone</Text>
+                        <View style={styles.verifiedInput}>
+                            <TextInput
+                                style={[styles.input, { flex: 1 }]}
+                                value={phone}
+                                onChangeText={setPhone}
+                                placeholder="+1 (555) 123-4567"
+                                keyboardType="phone-pad"
+                            />
+                            <TouchableOpacity>
+                                <Text style={styles.verifyText}>Verify</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    <View style={styles.divider} />
+
+                    {/* Privacy Settings */}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Privacy</Text>
+
+                        <TouchableOpacity style={styles.settingRow}>
+                            <View style={styles.settingLeft}>
+                                <Ionicons name="lock-closed-outline" size={20} color="#666" />
+                                <Text style={styles.settingLabel}>Private Account</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#CCC" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.settingRow}>
+                            <View style={styles.settingLeft}>
+                                <Ionicons name="eye-off-outline" size={20} color="#666" />
+                                <Text style={styles.settingLabel}>Blocked Users</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#CCC" />
                         </TouchableOpacity>
                     </View>
+                </View>
 
-                    {/* Form Section */}
-                    <View style={styles.formSection}>
-                        {/* Name Input */}
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Name</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={name}
-                                onChangeText={setName}
-                                placeholder="Enter your name"
-                                placeholderTextColor="#999"
-                            />
-                        </View>
-
-                        {/* Bio Input */}
-                        <View style={styles.inputGroup}>
-                            <View style={styles.labelRow}>
-                                <Text style={styles.label}>Bio</Text>
-                                <Text style={styles.charCount}>
-                                    {bio.length}/{MAX_BIO_LENGTH}
-                                </Text>
-                            </View>
-                            <TextInput
-                                style={[styles.input, styles.bioInput]}
-                                value={bio}
-                                onChangeText={(text) => {
-                                    if (text.length <= MAX_BIO_LENGTH) {
-                                        setBio(text);
-                                    }
-                                }}
-                                placeholder="Tell us about yourself"
-                                placeholderTextColor="#999"
-                                multiline
-                                numberOfLines={4}
-                                textAlignVertical="top"
-                            />
-                        </View>
-
-                        {/* Location Input */}
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Location</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={location}
-                                onChangeText={setLocation}
-                                placeholder="📍 Your location"
-                                placeholderTextColor="#999"
-                            />
-                        </View>
-                    </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
+                <View style={{ height: 40 }} />
+            </ScrollView>
         </SafeAreaView>
     );
 }
@@ -259,12 +180,7 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFAFA',
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: '#FFF',
     },
     header: {
         flexDirection: 'row',
@@ -272,48 +188,46 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: '#FFF',
         borderBottomWidth: 1,
         borderBottomColor: '#EFEFEF',
     },
-    backButton: {
+    cancelButton: {
         padding: 4,
     },
+    cancelText: {
+        fontSize: 16,
+        color: '#666',
+    },
     headerTitle: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '600',
         color: '#333',
     },
     saveButton: {
+        padding: 4,
+    },
+    saveText: {
         fontSize: 16,
         fontWeight: '600',
         color: '#4ECDC4',
-        paddingHorizontal: 8,
     },
-    keyboardView: {
+    content: {
         flex: 1,
     },
-    scrollView: {
-        flex: 1,
-    },
-    imageSection: {
+    photoSection: {
         alignItems: 'center',
-        paddingVertical: 32,
-        backgroundColor: '#FFF',
+        paddingVertical: 30,
         borderBottomWidth: 1,
-        borderBottomColor: '#EFEFEF',
+        borderBottomColor: '#F5F5F5',
     },
-    profileImage: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
+    profilePhoto: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
         marginBottom: 16,
-        backgroundColor: '#F0F0F0',
     },
     changePhotoButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
+        paddingVertical: 8,
     },
     changePhotoText: {
         fontSize: 16,
@@ -321,17 +235,10 @@ const styles = StyleSheet.create({
         color: '#4ECDC4',
     },
     formSection: {
-        paddingHorizontal: 16,
-        paddingTop: 24,
+        padding: 20,
     },
     inputGroup: {
-        marginBottom: 24,
-    },
-    labelRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 20,
     },
     label: {
         fontSize: 14,
@@ -339,22 +246,65 @@ const styles = StyleSheet.create({
         color: '#333',
         marginBottom: 8,
     },
-    charCount: {
-        fontSize: 12,
-        color: '#999',
-    },
     input: {
-        backgroundColor: '#FFF',
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-        borderRadius: 8,
+        backgroundColor: '#F5F5F5',
+        borderRadius: 10,
         paddingHorizontal: 16,
         paddingVertical: 12,
         fontSize: 16,
         color: '#333',
     },
-    bioInput: {
-        height: 100,
-        paddingTop: 12,
+    textArea: {
+        minHeight: 100,
+        textAlignVertical: 'top',
+    },
+    verifiedInput: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    verifiedBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    verifiedText: {
+        fontSize: 13,
+        color: '#4ECDC4',
+        fontWeight: '500',
+    },
+    verifyText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#4ECDC4',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#F0F0F0',
+        marginVertical: 20,
+    },
+    section: {
+        marginTop: 8,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#333',
+        marginBottom: 16,
+    },
+    settingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+    },
+    settingLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    settingLabel: {
+        fontSize: 16,
+        color: '#333',
     },
 });
