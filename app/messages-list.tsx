@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -7,99 +7,124 @@ import {
     TouchableOpacity,
     Image,
     TextInput,
+    ActivityIndicator,
+    RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-
-// Mock conversations data
-const mockConversations = [
-    {
-        id: '1',
-        user: {
-            name: 'Sarah Johnson',
-            username: '@sarahj',
-            avatar: 'https://i.pravatar.cc/150?img=1',
-        },
-        lastMessage: 'That sounds amazing! When are you planning to go?',
-        timestamp: '2m ago',
-        unread: 2,
-        online: true,
-    },
-    {
-        id: '2',
-        user: {
-            name: 'Mike Chen',
-            username: '@mikec',
-            avatar: 'https://i.pravatar.cc/150?img=3',
-        },
-        lastMessage: 'Thanks for the recommendation! 🙏',
-        timestamp: '1h ago',
-        unread: 0,
-        online: false,
-    },
-    {
-        id: '3',
-        user: {
-            name: 'Emma Wilson',
-            username: '@emmaw',
-            avatar: 'https://i.pravatar.cc/150?img=4',
-        },
-        lastMessage: 'Have you been to Santorini before?',
-        timestamp: '3h ago',
-        unread: 1,
-        online: true,
-    },
-    {
-        id: '4',
-        user: {
-            name: 'Alex Rivera',
-            username: '@alexr',
-            avatar: 'https://i.pravatar.cc/150?img=2',
-        },
-        lastMessage: 'The photos look incredible!',
-        timestamp: '1d ago',
-        unread: 0,
-        online: false,
-    },
-    {
-        id: '5',
-        user: {
-            name: 'Lisa Park',
-            username: '@lisap',
-            avatar: 'https://i.pravatar.cc/150?img=5',
-        },
-        lastMessage: 'Would love to join you on the next trip!',
-        timestamp: '2d ago',
-        unread: 0,
-        online: false,
-    },
-];
+import { supabase } from '../lib/supabase';
+import { useAuth } from './context/AuthContext';
 
 export default function MessagesListScreen() {
     const router = useRouter();
+    const { user } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
-    const [conversations, setConversations] = useState(mockConversations);
+    const [conversations, setConversations] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    useEffect(() => {
+        if (user) {
+            loadConversations();
+        }
+    }, [user]);
+
+    const loadConversations = async () => {
+        try {
+            // Fetch conversations where current user is a participant
+            const { data, error } = await supabase
+                .from('conversations')
+                .select(`
+                    *,
+                    last_message:last_message_id (
+                        content,
+                        created_at,
+                        is_read,
+                        sender_id
+                    ),
+                    participant_1:participant_1_id (
+                        id,
+                        username,
+                        full_name,
+                        avatar_url
+                    ),
+                    participant_2:participant_2_id (
+                        id,
+                        username,
+                        full_name,
+                        avatar_url
+                    )
+                `)
+                .or(`participant_1_id.eq.${user?.id},participant_2_id.eq.${user?.id}`)
+                .order('updated_at', { ascending: false });
+
+            if (error) throw error;
+
+            // Process data to identify the "other" user
+            const processedConversations = data?.map(conv => {
+                const isParticipant1 = conv.participant_1_id === user?.id;
+                const otherUser = isParticipant1 ? conv.participant_2 : conv.participant_1;
+                const unreadCount = isParticipant1 ? conv.unread_count_p1 : conv.unread_count_p2;
+
+                return {
+                    id: conv.id,
+                    otherUser,
+                    lastMessage: conv.last_message?.content || 'Start a conversation',
+                    timestamp: conv.last_message?.created_at,
+                    unread: unreadCount,
+                    online: false, // Need presence system for this
+                };
+            }) || [];
+
+            setConversations(processedConversations);
+        } catch (error) {
+            console.error('Error loading conversations:', error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        loadConversations();
+    };
 
     const filteredConversations = conversations.filter((conv) =>
-        conv.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        conv.user.username.toLowerCase().includes(searchQuery.toLowerCase())
+        conv.otherUser?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        conv.otherUser?.username?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const renderConversation = ({ item }: { item: any }) => (
         <TouchableOpacity
             style={styles.conversationItem}
-            onPress={() => router.push('/conversation' as any)}
+            onPress={() => router.push({
+                pathname: '/conversation',
+                params: {
+                    id: item.id,
+                    otherUserId: item.otherUser.id,
+                    otherUserName: item.otherUser.full_name || item.otherUser.username,
+                    otherUserAvatar: item.otherUser.avatar_url
+                }
+            })}
         >
             <View style={styles.avatarContainer}>
-                <Image source={{ uri: item.user.avatar }} style={styles.avatar} />
+                <Image
+                    source={{ uri: item.otherUser?.avatar_url || 'https://i.pravatar.cc/150?img=1' }}
+                    style={styles.avatar}
+                />
                 {item.online && <View style={styles.onlineIndicator} />}
             </View>
 
             <View style={styles.conversationContent}>
                 <View style={styles.conversationHeader}>
-                    <Text style={styles.userName}>{item.user.name}</Text>
-                    <Text style={styles.timestamp}>{item.timestamp}</Text>
+                    <Text style={styles.userName}>{item.otherUser?.full_name || item.otherUser?.username || 'User'}</Text>
+                    {item.timestamp && (
+                        <Text style={styles.timestamp}>
+                            {new Date(item.timestamp).toLocaleDateString()}
+                        </Text>
+                    )}
                 </View>
                 <View style={styles.messageRow}>
                     <Text
@@ -117,6 +142,16 @@ export default function MessagesListScreen() {
             </View>
         </TouchableOpacity>
     );
+
+    if (loading && !refreshing) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#4ECDC4" />
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -155,6 +190,9 @@ export default function MessagesListScreen() {
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
                         <Ionicons name="chatbubbles-outline" size={64} color="#CCC" />
@@ -173,6 +211,11 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#FFF',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     header: {
         flexDirection: 'row',

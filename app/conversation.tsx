@@ -9,105 +9,190 @@ import {
     Image,
     KeyboardAvoidingView,
     Platform,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-
-// Mock messages data
-const mockMessages = [
-    {
-        id: '1',
-        text: 'Hey! I saw your post about Santorini. It looks amazing!',
-        sender: 'other',
-        timestamp: '10:30 AM',
-    },
-    {
-        id: '2',
-        text: 'Thanks! It was an incredible experience. Have you been there?',
-        sender: 'me',
-        timestamp: '10:32 AM',
-    },
-    {
-        id: '3',
-        text: 'Not yet, but it\'s on my bucket list! How long did you stay?',
-        sender: 'other',
-        timestamp: '10:33 AM',
-    },
-    {
-        id: '4',
-        text: 'We stayed for 5 days. Perfect amount of time to explore the island.',
-        sender: 'me',
-        timestamp: '10:35 AM',
-    },
-    {
-        id: '5',
-        text: 'That sounds perfect! Any recommendations for accommodations?',
-        sender: 'other',
-        timestamp: '10:36 AM',
-    },
-    {
-        id: '6',
-        text: 'Definitely! I can share some great options. What\'s your budget?',
-        sender: 'me',
-        timestamp: '10:38 AM',
-    },
-];
-
-const otherUser = {
-    name: 'Sarah Johnson',
-    username: '@sarahj',
-    avatar: 'https://i.pravatar.cc/150?img=1',
-    online: true,
-};
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { supabase } from '../lib/supabase';
+import { useAuth } from './context/AuthContext';
 
 export default function ConversationScreen() {
     const router = useRouter();
-    const [messages, setMessages] = useState(mockMessages);
+    const { user } = useAuth();
+    const params = useLocalSearchParams();
+    const [conversationId, setConversationId] = useState<string | null>(params.id as string || null);
+    const otherUserId = params.otherUserId as string;
+    const otherUserName = params.otherUserName as string;
+    const otherUserAvatar = params.otherUserAvatar as string;
+
+    const [messages, setMessages] = useState<any[]>([]);
     const [messageText, setMessageText] = useState('');
+    const [loading, setLoading] = useState(true);
     const flatListRef = useRef<FlatList>(null);
 
     useEffect(() => {
+        if (user) {
+            if (conversationId) {
+                loadMessages(conversationId);
+                subscribeToMessages(conversationId);
+            } else if (otherUserId) {
+                // Check if conversation already exists
+                checkExistingConversation();
+            }
+        }
+    }, [user, conversationId, otherUserId]);
+
+    const checkExistingConversation = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('conversations')
+                .select('id')
+                .or(`and(participant_1_id.eq.${user?.id},participant_2_id.eq.${otherUserId}),and(participant_1_id.eq.${otherUserId},participant_2_id.eq.${user?.id})`)
+                .single();
+
+            if (data) {
+                setConversationId(data.id);
+            } else {
+                setLoading(false); // No conversation yet, ready to create one
+            }
+        } catch (error) {
+            console.error('Error checking conversation:', error);
+            setLoading(false);
+        }
+    };
+
+    const loadMessages = async (convId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('messages')
+                .select('*')
+                .eq('conversation_id', convId)
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+            setMessages(data || []);
+        } catch (error) {
+            console.error('Error loading messages:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const subscribeToMessages = (convId: string) => {
+        const subscription = supabase
+            .channel(`conversation:${convId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `conversation_id=eq.${convId}`,
+                },
+                (payload) => {
+                    const newMessage = payload.new;
+                    setMessages((prev) => [...prev, newMessage]);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(subscription);
+        };
+    };
+
+    useEffect(() => {
         // Scroll to bottom when messages change
-        if (flatListRef.current) {
-            flatListRef.current.scrollToEnd({ animated: true });
+        if (flatListRef.current && messages.length > 0) {
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
         }
     }, [messages]);
 
-    const handleSendMessage = () => {
-        if (messageText.trim()) {
-            const newMessage = {
-                id: Date.now().toString(),
-                text: messageText,
-                sender: 'me',
-                timestamp: new Date().toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                }),
-            };
-            setMessages([...messages, newMessage]);
-            setMessageText('');
+    const handleSendMessage = async () => {
+        if (!messageText.trim() || !user) return;
+
+        const text = messageText.trim();
+        setMessageText(''); // Optimistic clear
+
+        try {
+            let currentConvId = conversationId;
+
+            // Create conversation if it doesn't exist
+            if (!currentConvId && otherUserId) {
+                const { data: newConv, error: convError } = await supabase
+                    .from('conversations')
+                    .insert({
+                        participant_1_id: user.id,
+                        participant_2_id: otherUserId,
+                    })
+                    .select()
+                    .single();
+
+                if (convError) throw convError;
+                currentConvId = newConv.id;
+                setConversationId(newConv.id);
+            }
+
+            if (currentConvId) {
+                const { error } = await supabase
+                    .from('messages')
+                    .insert({
+                        conversation_id: currentConvId,
+                        sender_id: user.id,
+                        recipient_id: otherUserId, // Assuming 1-on-1 for now
+                        content: text,
+                    });
+
+                if (error) throw error;
+
+                // Update conversation last message (can be done via trigger ideally, but manual for now)
+                await supabase
+                    .from('conversations')
+                    .update({
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', currentConvId);
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            // Restore text if failed?
         }
     };
 
     const renderMessage = ({ item }: { item: any }) => {
-        const isMe = item.sender === 'me';
+        const isMe = item.sender_id === user?.id;
         return (
             <View style={[styles.messageContainer, isMe && styles.myMessageContainer]}>
                 {!isMe && (
-                    <Image source={{ uri: otherUser.avatar }} style={styles.messageAvatar} />
+                    <Image
+                        source={{ uri: otherUserAvatar || 'https://i.pravatar.cc/150?img=1' }}
+                        style={styles.messageAvatar}
+                    />
                 )}
                 <View style={[styles.messageBubble, isMe && styles.myMessageBubble]}>
                     <Text style={[styles.messageText, isMe && styles.myMessageText]}>
-                        {item.text}
+                        {item.content}
                     </Text>
                     <Text style={[styles.messageTime, isMe && styles.myMessageTime]}>
-                        {item.timestamp}
+                        {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                 </View>
             </View>
         );
     };
+
+    if (loading) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#4ECDC4" />
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -119,16 +204,22 @@ export default function ConversationScreen() {
 
                 <TouchableOpacity
                     style={styles.userInfo}
-                    onPress={() => router.push('/user-profile' as any)}
+                    onPress={() => router.push({
+                        pathname: '/user-profile',
+                        params: { userId: otherUserId }
+                    })}
                 >
                     <View style={styles.avatarContainer}>
-                        <Image source={{ uri: otherUser.avatar }} style={styles.headerAvatar} />
-                        {otherUser.online && <View style={styles.onlineIndicator} />}
+                        <Image
+                            source={{ uri: otherUserAvatar || 'https://i.pravatar.cc/150?img=1' }}
+                            style={styles.headerAvatar}
+                        />
+                        {/* Online status would require presence system */}
                     </View>
                     <View>
-                        <Text style={styles.headerName}>{otherUser.name}</Text>
+                        <Text style={styles.headerName}>{otherUserName || 'User'}</Text>
                         <Text style={styles.headerStatus}>
-                            {otherUser.online ? 'Active now' : 'Offline'}
+                            Active now
                         </Text>
                     </View>
                 </TouchableOpacity>
@@ -152,6 +243,11 @@ export default function ConversationScreen() {
                     contentContainerStyle={styles.messagesList}
                     showsVerticalScrollIndicator={false}
                     onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                    ListEmptyComponent={
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyText}>No messages yet. Say hello!</Text>
+                        </View>
+                    }
                 />
 
                 {/* Quick Actions */}
@@ -200,6 +296,11 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#FFF',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     header: {
         flexDirection: 'row',
@@ -348,5 +449,13 @@ const styles = StyleSheet.create({
     },
     sendButtonDisabled: {
         opacity: 0.5,
+    },
+    emptyState: {
+        alignItems: 'center',
+        marginTop: 40,
+    },
+    emptyText: {
+        color: '#999',
+        fontSize: 16,
     },
 });

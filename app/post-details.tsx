@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     ActivityIndicator,
     Dimensions,
@@ -10,66 +10,140 @@ import {
     Text,
     TouchableOpacity,
     View,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '../lib/supabase';
+import { useAuth } from './context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
-
-// Mock data - will be replaced with actual data from hooks
-const mockPost = {
-    id: 1,
-    username: 'traveler_jane',
-    userAvatar: 'https://i.pravatar.cc/150?img=1',
-    location: 'Santorini, Greece',
-    postImage: 'https://picsum.photos/800/1000?random=1',
-    caption: 'Absolutely stunning sunset views from Oia! 🌅 This place is a dream come true. The white-washed buildings against the blue Aegean Sea create the most magical atmosphere. Highly recommend visiting during golden hour!',
-    likes: 1234,
-    comments: 89,
-    shares: 45,
-    budget: '$2,500',
-    timestamp: '2 hours ago',
-    isLiked: false,
-};
-
-const mockComments = [
-    {
-        id: 1,
-        username: 'travel_lover',
-        avatar: 'https://i.pravatar.cc/150?img=2',
-        comment: 'This looks amazing! Adding to my bucket list 😍',
-        likes: 23,
-        timestamp: '1 hour ago',
-    },
-    {
-        id: 2,
-        username: 'wanderlust_mike',
-        avatar: 'https://i.pravatar.cc/150?img=3',
-        comment: 'I was there last summer! The sunset is even better in person',
-        likes: 15,
-        timestamp: '45 minutes ago',
-    },
-    {
-        id: 3,
-        username: 'adventure_sarah',
-        avatar: 'https://i.pravatar.cc/150?img=4',
-        comment: 'How many days would you recommend staying?',
-        likes: 8,
-        timestamp: '30 minutes ago',
-    },
-];
 
 export default function PostDetailsScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const postId = params.id;
+    const { user } = useAuth();
 
-    const [isLiked, setIsLiked] = useState(mockPost.isLiked);
-    const [likesCount, setLikesCount] = useState(mockPost.likes);
+    // State
+    const [post, setPost] = useState<any>(null);
+    const [comments, setComments] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isLiked, setIsLiked] = useState(false);
+    const [likesCount, setLikesCount] = useState(0);
     const [imageLoaded, setImageLoaded] = useState(false);
 
-    const handleLike = () => {
-        setIsLiked(!isLiked);
-        setLikesCount(isLiked ? likesCount - 1 : likesCount + 1);
+    useEffect(() => {
+        if (postId) {
+            loadPostData();
+        }
+    }, [postId]);
+
+    const loadPostData = async () => {
+        try {
+            console.log('📝 Loading post:', postId);
+            setLoading(true);
+
+            // Fetch post with user data
+            const { data: postData, error: postError } = await supabase
+                .from('posts')
+                .select(`
+                    *,
+                    users:user_id (
+                        id,
+                        full_name,
+                        username,
+                        avatar_url
+                    )
+                `)
+                .eq('id', postId)
+                .single();
+
+            if (postError) throw postError;
+
+            setPost(postData);
+            setLikesCount(postData.likes_count || 0);
+
+            // Check if current user liked this post
+            if (user) {
+                const { data: likeData } = await supabase
+                    .from('likes')
+                    .select('id')
+                    .eq('post_id', postId)
+                    .eq('user_id', user.id)
+                    .single();
+
+                setIsLiked(!!likeData);
+            }
+
+            // Fetch comments
+            const { data: commentsData, error: commentsError } = await supabase
+                .from('comments')
+                .select(`
+                    *,
+                    users:user_id (
+                        id,
+                        full_name,
+                        username,
+                        avatar_url
+                    )
+                `)
+                .eq('post_id', postId)
+                .order('created_at', { ascending: false })
+                .limit(3);
+
+            if (commentsError) throw commentsError;
+
+            setComments(commentsData || []);
+
+            console.log('✅ Post loaded successfully');
+        } catch (error: any) {
+            console.error('❌ Error loading post:', error);
+            Alert.alert('Error', 'Failed to load post');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLike = async () => {
+        if (!user) {
+            Alert.alert('Login Required', 'Please login to like posts');
+            return;
+        }
+
+        try {
+            if (isLiked) {
+                // Unlike
+                await supabase
+                    .from('likes')
+                    .delete()
+                    .eq('post_id', postId)
+                    .eq('user_id', user.id);
+
+                setIsLiked(false);
+                setLikesCount(prev => prev - 1);
+            } else {
+                // Like
+                await supabase
+                    .from('likes')
+                    .insert({
+                        post_id: postId,
+                        user_id: user.id,
+                    });
+
+                setIsLiked(true);
+                setLikesCount(prev => prev + 1);
+            }
+
+            // Update post likes count
+            await supabase
+                .from('posts')
+                .update({ likes_count: isLiked ? likesCount - 1 : likesCount + 1 })
+                .eq('id', postId);
+
+        } catch (error: any) {
+            console.error('Error liking post:', error);
+            Alert.alert('Error', 'Failed to update like');
+        }
     };
 
     const handleShare = () => {
@@ -84,6 +158,48 @@ export default function PostDetailsScreen() {
     const handleUserProfile = (username: string) => {
         router.push(`/user-profile?username=${username}`);
     };
+
+    if (loading) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <Ionicons name="arrow-back" size={24} color="#333" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Post</Text>
+                    <View style={styles.moreButton} />
+                </View>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#4ECDC4" />
+                    <Text style={styles.loadingText}>Loading post...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (!post) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <Ionicons name="arrow-back" size={24} color="#333" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Post</Text>
+                    <View style={styles.moreButton} />
+                </View>
+                <View style={styles.loadingContainer}>
+                    <Text style={styles.errorText}>Post not found</Text>
+                    <TouchableOpacity style={styles.retryButton} onPress={loadPostData}>
+                        <Text style={styles.retryButtonText}>Retry</Text>
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    const author = post.users;
+    const formattedBudget = post.min_budget ? `$${post.min_budget}` : null;
+    const timeAgo = new Date(post.created_at).toLocaleDateString();
 
     return (
         <SafeAreaView style={styles.container}>
@@ -102,19 +218,26 @@ export default function PostDetailsScreen() {
                 {/* User Info */}
                 <TouchableOpacity
                     style={styles.userSection}
-                    onPress={() => handleUserProfile(mockPost.username)}
+                    onPress={() => handleUserProfile(author?.username || '')}
                 >
-                    <Image source={{ uri: mockPost.userAvatar }} style={styles.userAvatar} />
+                    <Image
+                        source={{ uri: author?.avatar_url || 'https://i.pravatar.cc/150?img=1' }}
+                        style={styles.userAvatar}
+                    />
                     <View style={styles.userInfo}>
-                        <Text style={styles.username}>{mockPost.username}</Text>
-                        <View style={styles.locationRow}>
-                            <Ionicons name="location-outline" size={14} color="#666" />
-                            <Text style={styles.location}>{mockPost.location}</Text>
-                        </View>
+                        <Text style={styles.username}>{author?.full_name || 'User'}</Text>
+                        {post.location_name && (
+                            <View style={styles.locationRow}>
+                                <Ionicons name="location-outline" size={14} color="#666" />
+                                <Text style={styles.location}>{post.location_name}</Text>
+                            </View>
+                        )}
                     </View>
-                    <TouchableOpacity style={styles.followButton}>
-                        <Text style={styles.followButtonText}>Follow</Text>
-                    </TouchableOpacity>
+                    {user?.id !== author?.id && (
+                        <TouchableOpacity style={styles.followButton}>
+                            <Text style={styles.followButtonText}>Follow</Text>
+                        </TouchableOpacity>
+                    )}
                 </TouchableOpacity>
 
                 {/* Post Image */}
@@ -125,7 +248,7 @@ export default function PostDetailsScreen() {
                         </View>
                     )}
                     <Image
-                        source={{ uri: mockPost.postImage }}
+                        source={{ uri: post.media_urls?.[0] || 'https://via.placeholder.com/800x1000' }}
                         style={styles.postImage}
                         onLoad={() => setImageLoaded(true)}
                         resizeMode="cover"
@@ -160,69 +283,91 @@ export default function PostDetailsScreen() {
                 {/* Engagement Stats */}
                 <View style={styles.statsSection}>
                     <Text style={styles.likesText}>{likesCount.toLocaleString()} likes</Text>
-                    <Text style={styles.timestamp}>{mockPost.timestamp}</Text>
+                    <Text style={styles.timestamp}>{timeAgo}</Text>
                 </View>
 
                 {/* Caption */}
-                <View style={styles.captionSection}>
-                    <Text style={styles.caption}>
-                        <Text style={styles.captionUsername}>{mockPost.username}</Text>{' '}
-                        {mockPost.caption}
-                    </Text>
-                </View>
+                {post.caption && (
+                    <View style={styles.captionSection}>
+                        <Text style={styles.caption}>
+                            <Text style={styles.captionUsername}>{author?.full_name || 'User'}</Text>{' '}
+                            {post.caption}
+                        </Text>
+                    </View>
+                )}
 
                 {/* Budget */}
-                <View style={styles.budgetSection}>
-                    <Ionicons name="wallet-outline" size={20} color="#4ECDC4" />
-                    <Text style={styles.budgetLabel}>Estimated Budget: </Text>
-                    <Text style={styles.budgetAmount}>{mockPost.budget}</Text>
-                </View>
+                {formattedBudget && (
+                    <View style={styles.budgetSection}>
+                        <Ionicons name="wallet-outline" size={20} color="#4ECDC4" />
+                        <Text style={styles.budgetLabel}>Estimated Budget: </Text>
+                        <Text style={styles.budgetAmount}>{formattedBudget}</Text>
+                    </View>
+                )}
 
                 {/* Comments Preview */}
                 <View style={styles.commentsSection}>
                     <View style={styles.commentsSectionHeader}>
                         <Text style={styles.commentsTitle}>
-                            Comments ({mockPost.comments})
+                            Comments ({post.comments_count || 0})
                         </Text>
-                        <TouchableOpacity onPress={handleViewAllComments}>
-                            <Text style={styles.viewAllText}>View all</Text>
-                        </TouchableOpacity>
+                        {comments.length > 0 && (
+                            <TouchableOpacity onPress={handleViewAllComments}>
+                                <Text style={styles.viewAllText}>View all</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
 
-                    {mockComments.slice(0, 3).map((comment) => (
+                    {comments.length === 0 ? (
+                        <View style={styles.emptyComments}>
+                            <Text style={styles.emptyCommentsText}>No comments yet</Text>
+                            <Text style={styles.emptyCommentsSubtext}>Be the first to comment!</Text>
+                        </View>
+                    ) : (
+                        comments.map((comment) => (
+                            <TouchableOpacity
+                                key={comment.id}
+                                style={styles.commentItem}
+                                onPress={handleViewAllComments}
+                            >
+                                <Image
+                                    source={{ uri: comment.users?.avatar_url || 'https://i.pravatar.cc/150?img=2' }}
+                                    style={styles.commentAvatar}
+                                />
+                                <View style={styles.commentContent}>
+                                    <Text style={styles.commentText}>
+                                        <Text style={styles.commentUsername}>
+                                            {comment.users?.full_name || 'User'}
+                                        </Text>{' '}
+                                        {comment.content}
+                                    </Text>
+                                    <View style={styles.commentMeta}>
+                                        <Text style={styles.commentTimestamp}>
+                                            {new Date(comment.created_at).toLocaleDateString()}
+                                        </Text>
+                                        <Text style={styles.commentLikes}>
+                                            {comment.likes_count || 0} likes
+                                        </Text>
+                                        <TouchableOpacity>
+                                            <Text style={styles.replyButton}>Reply</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+                        ))
+                    )}
+
+                    {comments.length > 0 && (
                         <TouchableOpacity
-                            key={comment.id}
-                            style={styles.commentItem}
+                            style={styles.viewAllCommentsButton}
                             onPress={handleViewAllComments}
                         >
-                            <Image source={{ uri: comment.avatar }} style={styles.commentAvatar} />
-                            <View style={styles.commentContent}>
-                                <Text style={styles.commentText}>
-                                    <Text style={styles.commentUsername}>{comment.username}</Text>{' '}
-                                    {comment.comment}
-                                </Text>
-                                <View style={styles.commentMeta}>
-                                    <Text style={styles.commentTimestamp}>{comment.timestamp}</Text>
-                                    <Text style={styles.commentLikes}>
-                                        {comment.likes} likes
-                                    </Text>
-                                    <TouchableOpacity>
-                                        <Text style={styles.replyButton}>Reply</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
+                            <Text style={styles.viewAllCommentsText}>
+                                View all {post.comments_count || 0} comments
+                            </Text>
+                            <Ionicons name="chevron-forward" size={20} color="#4ECDC4" />
                         </TouchableOpacity>
-                    ))}
-
-                    <TouchableOpacity
-                        style={styles.viewAllCommentsButton}
-                        onPress={handleViewAllComments}
-                    >
-                        <Text style={styles.viewAllCommentsText}>
-                            View all {mockPost.comments} comments
-                        </Text>
-                        <Ionicons name="chevron-forward" size={20} color="#4ECDC4" />
-                    </TouchableOpacity>
+                    )}
                 </View>
 
                 {/* Plan Trip Section */}
@@ -495,5 +640,47 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '600',
         color: '#fff',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 40,
+    },
+    loadingText: {
+        marginTop: 16,
+        fontSize: 14,
+        color: '#666',
+    },
+    errorText: {
+        fontSize: 16,
+        color: '#FF3B30',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    retryButton: {
+        backgroundColor: '#4ECDC4',
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    retryButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    emptyComments: {
+        padding: 32,
+        alignItems: 'center',
+    },
+    emptyCommentsText: {
+        fontSize: 15,
+        color: '#666',
+        fontWeight: '600',
+        marginBottom: 4,
+    },
+    emptyCommentsSubtext: {
+        fontSize: 13,
+        color: '#999',
     },
 });

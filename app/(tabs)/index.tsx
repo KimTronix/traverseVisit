@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-Image,
+  Image,
   Modal,
   ScrollView,
   Share,
@@ -11,11 +11,15 @@ Image,
   Text,
   TouchableOpacity,
   View,
+  RefreshControl,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { useStory } from '../../contexts/StoryContext';
 import StoryViewer from '../story-viewer';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 // Simple DoubleTapLike component for now
 const DoubleTapLike = ({
@@ -62,88 +66,178 @@ const DoubleTapLike = ({
   );
 };
 
-const stories = [
-  { id: 1, name: 'Your Story', image: 'https://i.pravatar.cc/150?img=1', isLive: false, hasStory: true },
-  { id: 2, name: 'Maria', image: 'https://i.pravatar.cc/150?img=2', isLive: true, hasStory: false },
-  { id: 3, name: 'John', image: 'https://i.pravatar.cc/150?img=3', isLive: false, hasStory: true },
-  { id: 4, name: 'Sarah', image: 'https://i.pravatar.cc/150?img=4', isLive: false, hasStory: true },
-  { id: 5, name: 'Mike', image: 'https://i.pravatar.cc/150?img=5', isLive: false, hasStory: true },
-];
-
-// Mock story data for viewing
-const mockStories = [
-  {
-    id: 'story-1',
-    uri: 'https://picsum.photos/400/800?random=1',
-    type: 'image' as const,
-    caption: 'Beautiful sunset today! ',
-    timestamp: Date.now() - 3600000,
-    views: 24,
-  },
-  {
-    id: 'story-2',
-    uri: 'https://picsum.photos/400/800?random=2',
-    type: 'image' as const,
-    caption: 'Coffee time ',
-    timestamp: Date.now() - 7200000,
-    views: 18,
-  },
-  {
-    id: 'story-3',
-    uri: 'https://picsum.photos/400/800?random=3',
-    type: 'image' as const,
-    caption: 'Working on something new...',
-    timestamp: Date.now() - 10800000,
-    views: 32,
-  },
-];
-
-// Mock data for posts
-const posts = [
-  {
-    id: 1,
-    username: 'AlexTravels',
-    location: 'Santorini, Greece',
-    userImage: 'https://i.pravatar.cc/150?img=6',
-    postImage: 'https://images.unsplash.com/photo-1613395877344-13d4a8e0d49e?w=800&q=80',
-    likes: 1234,
-    caption: 'Sunset views in Santorini are unmatched! #travel #greece',
-    budget: '$1200',
-    isPinned: true,
-  },
-];
-
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { getUserStories, incrementStoryViews } = useStory();
   const userStories = getUserStories();
 
-  const [postLikes, setPostLikes] = useState<{ [key: number]: { count: number; liked: boolean } }>(
-    posts.reduce((acc, post) => ({
-      ...acc,
-      [post.id]: { count: post.likes, liked: false }
-    }), {})
-  );
+  // State for posts
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [postLikes, setPostLikes] = useState<{ [key: string]: { count: number; liked: boolean } }>({});
+
+  // State for stories
+  const [stories, setStories] = useState<any[]>([]);
+  const [storiesLoading, setStoriesLoading] = useState(true);
+
+  // Load initial data
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async (retryCount = 0) => {
+    if (retryCount === 0) setLoading(true);
+    setError(null);
+
+    try {
+      await Promise.all([fetchPosts(), fetchStories()]);
+    } catch (err) {
+      console.error('Error loading data:', err);
+      if (retryCount < 3) {
+        // Auto-retry with exponential backoff
+        const timeout = Math.pow(2, retryCount) * 1000;
+        console.log(`Retrying in ${timeout}ms... (Attempt ${retryCount + 1})`);
+        setTimeout(() => loadData(retryCount + 1), timeout);
+      } else {
+        setError('Failed to load feed. Please check your connection.');
+        Alert.alert('Connection Error', 'Failed to load feed. Pull to refresh to try again.');
+      }
+    } finally {
+      if (retryCount === 0) setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
+
+  const fetchStories = async () => {
+    try {
+      setStoriesLoading(true);
+      // Fetch active stories (created in last 24h)
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const { data, error } = await supabase
+        .from('posts')
+        .select(`
+          id,
+          media_urls,
+          created_at,
+          users:user_id (
+            id,
+            username,
+            avatar_url,
+            full_name
+          )
+        `)
+        .eq('is_story', true)
+        .gt('created_at', yesterday)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Group stories by user
+      const groupedStories: any[] = [];
+      const userStoryMap = new Map();
+
+      data?.forEach(story => {
+        const userId = story.users.id;
+        if (!userStoryMap.has(userId)) {
+          userStoryMap.set(userId, {
+            id: userId,
+            name: story.users.full_name || story.users.username,
+            image: story.users.avatar_url || 'https://i.pravatar.cc/150?img=1',
+            isLive: false,
+            hasStory: true,
+            stories: []
+          });
+          groupedStories.push(userStoryMap.get(userId));
+        }
+        userStoryMap.get(userId).stories.push({
+          id: story.id,
+          uri: story.media_urls[0],
+          type: 'image',
+          timestamp: new Date(story.created_at).getTime(),
+        });
+      });
+
+      // Add "Your Story" at the beginning
+      const myStory = {
+        id: 'me',
+        name: 'Your Story',
+        image: user?.avatar_url || 'https://i.pravatar.cc/150?img=1',
+        isLive: false,
+        hasStory: userStories.length > 0
+      };
+
+      setStories([myStory, ...groupedStories]);
+    } catch (error) {
+      console.error('Error fetching stories:', error);
+      throw error;
+    } finally {
+      setStoriesLoading(false);
+    }
+  };
+
+  const fetchPosts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          users:user_id (
+            id,
+            username,
+            avatar_url,
+            location
+          )
+        `)
+        .eq('is_story', false)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedPosts = data?.map(post => ({
+        id: post.id,
+        username: post.users?.username || 'User',
+        location: post.location_name || post.users?.location || 'Unknown Location',
+        userImage: post.users?.avatar_url || 'https://i.pravatar.cc/150?img=1',
+        postImage: post.media_urls?.[0] || 'https://via.placeholder.com/400',
+        likes: post.likes_count || 0,
+        caption: post.caption || '',
+        budget: post.min_budget ? `$${post.min_budget}` : null,
+        isPinned: post.is_pinned || false,
+        timestamp: post.created_at
+      })) || [];
+
+      setPosts(formattedPosts);
+
+      // Initialize likes state
+      const initialLikes = formattedPosts.reduce((acc: any, post: any) => ({
+        ...acc,
+        [post.id]: { count: post.likes, liked: false } // TODO: Fetch actual liked status
+      }), {});
+      setPostLikes(initialLikes);
+
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      throw error;
+    }
+  };
+
   const [showShareModal, setShowShareModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<any>(null);
   const [showStoryViewer, setShowStoryViewer] = useState(false);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
   const [pressedStoryId, setPressedStoryId] = useState<number | null>(null);
 
-  // Update stories array to reflect user's actual stories
-  const updatedStories = stories.map(story => {
-    if (story.id === 1) {
-      return {
-        ...story,
-        hasStory: userStories.length > 0,
-        image: userStories.length > 0 ? userStories[0].uri : story.image
-      };
-    }
-    return story;
-  });
-
-  const handleStoryPress = (storyId: number) => {
-    if (storyId === 1) {
+  const handleStoryPress = (storyId: any) => {
+    if (storyId === 'me') {
       // "Your Story" - add story if no stories, view if has stories
       if (userStories.length === 0) {
         router.push('/add-story');
@@ -151,8 +245,9 @@ export default function HomeScreen() {
         setCurrentStoryIndex(0);
         setShowStoryViewer(true);
       }
-    } else if (updatedStories.find(s => s.id === storyId)?.hasStory) {
-      // View story
+    } else {
+      // View other user's story
+      // For now just show story viewer, in real app we'd pass the specific stories
       setCurrentStoryIndex(0);
       setShowStoryViewer(true);
     }
@@ -166,9 +261,9 @@ export default function HomeScreen() {
     setShowStoryViewer(false);
   };
 
-  const handleLikePost = (postId: number) => {
+  const handleLikePost = (postId: string) => {
     setPostLikes(prev => {
-      const current = prev[postId];
+      const current = prev[postId] || { count: 0, liked: false };
       const newLiked = !current.liked;
       const newCount = newLiked ? current.count + 1 : current.count - 1;
 
@@ -177,10 +272,14 @@ export default function HomeScreen() {
         [postId]: { count: newCount, liked: newLiked }
       };
     });
+    // TODO: Sync with DB
   };
 
   const handleComment = (post: any) => {
-    router.push('/comments' as any);
+    router.push({
+      pathname: '/post-comments',
+      params: { postId: post.id }
+    });
   };
 
   const handleShare = (post: any) => {
@@ -234,13 +333,19 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.iconButton}>
             <Ionicons name="search-outline" size={24} color="#333" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/chat')}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/ai-chat')}>
             <Ionicons name="chatbubble-outline" size={24} color="#333" />
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Stories Section */}
         <TouchableOpacity
           style={styles.storiesSection}
@@ -267,7 +372,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storiesScroll}>
-            {updatedStories.map((story) => (
+            {stories.map((story) => (
               <TouchableOpacity
                 key={story.id}
                 style={[
@@ -289,7 +394,7 @@ export default function HomeScreen() {
                       <Text style={styles.liveText}>LIVE</Text>
                     </View>
                   )}
-                  {story.id === 1 && (
+                  {story.id === 'me' && (
                     <TouchableOpacity
                       style={styles.addStoryButton}
                       onPress={(e) => {
@@ -308,86 +413,94 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         {/* Posts Feed */}
-        {posts.map((post) => (
-          <View key={post.id} style={styles.postCard}>
-            {/* Post Header */}
-            <View style={styles.postHeader}>
-              <View style={styles.postUserInfo}>
-                <Image source={{ uri: post.userImage }} style={styles.postUserImage} />
-                <View>
-                  <Text style={styles.postUsername}>{post.username}</Text>
-                  <Text style={styles.postLocation}>{post.location}</Text>
+        {loading && !refreshing ? (
+          <View style={{ padding: 20 }}>
+            <ActivityIndicator size="large" color="#4ECDC4" />
+          </View>
+        ) : (
+          posts.map((post) => (
+            <View key={post.id} style={styles.postCard}>
+              {/* Post Header */}
+              <View style={styles.postHeader}>
+                <View style={styles.postUserInfo}>
+                  <Image source={{ uri: post.userImage }} style={styles.postUserImage} />
+                  <View>
+                    <Text style={styles.postUsername}>{post.username}</Text>
+                    <Text style={styles.postLocation}>{post.location}</Text>
+                  </View>
                 </View>
+                {post.isPinned && (
+                  <View style={styles.pinBadge}>
+                    <Ionicons name="location" size={16} color="#FF6B6B" />
+                  </View>
+                )}
               </View>
-              {post.isPinned && (
-                <View style={styles.pinBadge}>
-                  <Ionicons name="location" size={16} color="#FF6B6B" />
+
+              {/* Post Image */}
+              <DoubleTapLike
+                initialLikes={post.likes}
+                isLiked={postLikes[post.id]?.liked || false}
+                onDoubleTap={() => handleLikePost(post.id)}
+                onSingleTap={() => router.push(`/post-details?postId=${post.id}` as any)}
+              >
+                <Image source={{ uri: post.postImage }} style={styles.postImage} />
+              </DoubleTapLike>
+
+              {/* Post Actions */}
+              <View style={styles.postActions}>
+                <View style={styles.leftActions}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleLikePost(post.id)}
+                  >
+                    <Ionicons
+                      name={postLikes[post.id]?.liked ? "heart" : "heart-outline"}
+                      size={26}
+                      color={postLikes[post.id]?.liked ? "#FF3B30" : "#333"}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleComment(post)}
+                  >
+                    <Ionicons name="chatbubble-outline" size={24} color="#333" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleShare(post)}
+                  >
+                    <Ionicons name="paper-plane-outline" size={24} color="#333" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => router.push('/destination-details' as any)}
+                  >
+                    <Ionicons name="airplane-outline" size={24} color="#333" />
+                  </TouchableOpacity>
                 </View>
-              )}
-            </View>
-
-            {/* Post Image */}
-            <DoubleTapLike
-              initialLikes={post.likes}
-              isLiked={postLikes[post.id]?.liked || false}
-              onDoubleTap={() => handleLikePost(post.id)}
-              onSingleTap={() => router.push(`/post-details?id=${post.id}` as any)}
-            >
-              <Image source={{ uri: post.postImage }} style={styles.postImage} />
-            </DoubleTapLike>
-
-            {/* Post Actions */}
-            <View style={styles.postActions}>
-              <View style={styles.leftActions}>
                 <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => handleLikePost(post.id)}
-                >
-                  <Ionicons
-                    name={postLikes[post.id]?.liked ? "heart" : "heart-outline"}
-                    size={26}
-                    color={postLikes[post.id]?.liked ? "#FF3B30" : "#333"}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => handleComment(post)}
-                >
-                  <Ionicons name="chatbubble-outline" size={24} color="#333" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => handleShare(post)}
-                >
-                  <Ionicons name="paper-plane-outline" size={24} color="#333" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.actionButton}
                   onPress={() => router.push('/destination-details' as any)}
                 >
-                  <Ionicons name="airplane-outline" size={24} color="#333" />
+                  <Ionicons name="bookmark-outline" size={24} color="#333" />
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                onPress={() => router.push('/destination-details' as any)}
-              >
-                <Ionicons name="bookmark-outline" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
 
-            {/* Post Caption */}
-            <View style={styles.postCaption}>
-              <Text style={styles.captionText}>{post.caption}</Text>
-              <View style={styles.budgetContainer}>
-                <Text style={styles.budgetLabel}>Min. Budget: </Text>
-                <Text style={styles.budgetAmount}>{post.budget}</Text>
+              {/* Post Caption */}
+              <View style={styles.postCaption}>
+                <Text style={styles.captionText}>{post.caption}</Text>
+                {post.budget && (
+                  <View style={styles.budgetContainer}>
+                    <Text style={styles.budgetLabel}>Min. Budget: </Text>
+                    <Text style={styles.budgetAmount}>{post.budget}</Text>
+                  </View>
+                )}
+                <Text style={styles.likesText}>
+                  {postLikes[post.id]?.count || post.likes} likes
+                </Text>
               </View>
-              <Text style={styles.likesText}>
-                {postLikes[post.id]?.count || post.likes} likes
-              </Text>
             </View>
-          </View>
-        ))}
+          ))
+        )}
       </ScrollView>
 
       {/* Share Modal */}

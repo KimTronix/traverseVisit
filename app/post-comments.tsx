@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -9,162 +9,215 @@ import {
     Image,
     KeyboardAvoidingView,
     Platform,
+    ActivityIndicator,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-
-// Mock comments data
-const mockComments = [
-    {
-        id: '1',
-        user: {
-            name: 'Sarah Johnson',
-            username: '@sarahj',
-            avatar: 'https://i.pravatar.cc/150?img=1',
-        },
-        text: 'This looks absolutely stunning! How long did you stay there?',
-        likes: 24,
-        liked: false,
-        timestamp: '2h ago',
-        replies: [
-            {
-                id: '1-1',
-                user: {
-                    name: 'Alex Rivera',
-                    username: '@alexr',
-                    avatar: 'https://i.pravatar.cc/150?img=2',
-                },
-                text: 'We stayed for 5 days! Highly recommend.',
-                likes: 8,
-                liked: false,
-                timestamp: '1h ago',
-            },
-        ],
-    },
-    {
-        id: '2',
-        user: {
-            name: 'Mike Chen',
-            username: '@mikec',
-            avatar: 'https://i.pravatar.cc/150?img=3',
-        },
-        text: 'Added to my bucket list! 🌟',
-        likes: 15,
-        liked: true,
-        timestamp: '3h ago',
-        replies: [],
-    },
-    {
-        id: '3',
-        user: {
-            name: 'Emma Wilson',
-            username: '@emmaw',
-            avatar: 'https://i.pravatar.cc/150?img=4',
-        },
-        text: 'What was the weather like when you visited?',
-        likes: 7,
-        liked: false,
-        timestamp: '5h ago',
-        replies: [],
-    },
-];
+import { supabase } from '../lib/supabase';
+import { useAuth } from './context/AuthContext';
 
 export default function PostCommentsScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const [comments, setComments] = useState(mockComments);
+    const postId = params.postId;
+    const { user } = useAuth();
+
+    const [comments, setComments] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [commentText, setCommentText] = useState('');
+    const [posting, setPosting] = useState(false);
     const [replyingTo, setReplyingTo] = useState<string | null>(null);
 
-    const handleLikeComment = (commentId: string) => {
-        setComments(prevComments =>
-            prevComments.map(comment =>
-                comment.id === commentId
-                    ? {
-                        ...comment,
-                        liked: !comment.liked,
-                        likes: comment.liked ? comment.likes - 1 : comment.likes + 1,
-                    }
-                    : comment
-            )
-        );
-    };
+    useEffect(() => {
+        if (postId) {
+            loadComments();
+        }
+    }, [postId]);
 
-    const handlePostComment = () => {
-        if (commentText.trim()) {
-            const newComment = {
-                id: Date.now().toString(),
-                user: {
-                    name: 'You',
-                    username: '@you',
-                    avatar: 'https://i.pravatar.cc/150?img=10',
-                },
-                text: commentText,
-                likes: 0,
-                liked: false,
-                timestamp: 'Just now',
-                replies: [],
-            };
-            setComments([newComment, ...comments]);
-            setCommentText('');
-            setReplyingTo(null);
+    const loadComments = async () => {
+        try {
+            console.log('💬 Loading comments for post:', postId);
+            setLoading(true);
+
+            const { data, error } = await supabase
+                .from('comments')
+                .select(`
+                    *,
+                    users:user_id (
+                        id,
+                        full_name,
+                        username,
+                        avatar_url
+                    )
+                `)
+                .eq('post_id', postId)
+                .is('parent_comment_id', null) // Only top-level comments
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            setComments(data || []);
+            console.log('✅ Loaded', data?.length || 0, 'comments');
+        } catch (error: any) {
+            console.error('❌ Error loading comments:', error);
+            Alert.alert('Error', 'Failed to load comments');
+        } finally {
+            setLoading(false);
         }
     };
 
-    const renderComment = ({ item }: { item: any }) => (
-        <View style={styles.commentContainer}>
-            <TouchableOpacity onPress={() => router.push('/user-profile' as any)}>
-                <Image source={{ uri: item.user.avatar }} style={styles.avatar} />
-            </TouchableOpacity>
-            <View style={styles.commentContent}>
-                <View style={styles.commentHeader}>
-                    <TouchableOpacity onPress={() => router.push('/user-profile' as any)}>
-                        <Text style={styles.userName}>{item.user.name}</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.timestamp}>{item.timestamp}</Text>
-                </View>
-                <Text style={styles.commentText}>{item.text}</Text>
-                <View style={styles.commentActions}>
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => handleLikeComment(item.id)}
-                    >
-                        <Ionicons
-                            name={item.liked ? 'heart' : 'heart-outline'}
-                            size={16}
-                            color={item.liked ? '#FF3B30' : '#666'}
-                        />
-                        <Text style={[styles.actionText, item.liked && styles.likedText]}>
-                            {item.likes}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => setReplyingTo(item.id)}
-                    >
-                        <Text style={styles.actionText}>Reply</Text>
-                    </TouchableOpacity>
-                </View>
+    const handleLikeComment = async (commentId: string, currentlyLiked: boolean) => {
+        if (!user) {
+            Alert.alert('Login Required', 'Please login to like comments');
+            return;
+        }
 
-                {/* Replies */}
-                {item.replies && item.replies.length > 0 && (
-                    <View style={styles.repliesContainer}>
-                        {item.replies.map((reply: any) => (
-                            <View key={reply.id} style={styles.replyItem}>
-                                <Image source={{ uri: reply.user.avatar }} style={styles.replyAvatar} />
-                                <View style={styles.replyContent}>
-                                    <Text style={styles.userName}>{reply.user.name}</Text>
-                                    <Text style={styles.commentText}>{reply.text}</Text>
-                                    <Text style={styles.timestamp}>{reply.timestamp}</Text>
-                                </View>
-                            </View>
-                        ))}
+        try {
+            // Optimistically update UI
+            setComments(prevComments =>
+                prevComments.map(comment =>
+                    comment.id === commentId
+                        ? {
+                            ...comment,
+                            likes_count: currentlyLiked
+                                ? (comment.likes_count || 0) - 1
+                                : (comment.likes_count || 0) + 1,
+                        }
+                        : comment
+                )
+            );
+
+            if (currentlyLiked) {
+                // Unlike
+                await supabase
+                    .from('likes')
+                    .delete()
+                    .eq('comment_id', commentId)
+                    .eq('user_id', user.id);
+            } else {
+                // Like
+                await supabase
+                    .from('likes')
+                    .insert({
+                        comment_id: commentId,
+                        user_id: user.id,
+                    });
+            }
+
+            // Update comment likes count
+            const newCount = currentlyLiked
+                ? (comments.find(c => c.id === commentId)?.likes_count || 1) - 1
+                : (comments.find(c => c.id === commentId)?.likes_count || 0) + 1;
+
+            await supabase
+                .from('comments')
+                .update({ likes_count: newCount })
+                .eq('id', commentId);
+
+        } catch (error: any) {
+            console.error('Error liking comment:', error);
+            // Revert optimistic update
+            loadComments();
+        }
+    };
+
+    const handlePostComment = async () => {
+        if (!user) {
+            Alert.alert('Login Required', 'Please login to comment');
+            return;
+        }
+
+        if (!commentText.trim()) return;
+
+        try {
+            setPosting(true);
+            console.log('💬 Posting comment...');
+
+            const { data, error } = await supabase
+                .from('comments')
+                .insert({
+                    post_id: postId,
+                    user_id: user.id,
+                    content: commentText.trim(),
+                    parent_comment_id: replyingTo,
+                })
+                .select(`
+                    *,
+                    users:user_id (
+                        id,
+                        full_name,
+                        username,
+                        avatar_url
+                    )
+                `)
+                .single();
+
+            if (error) throw error;
+
+            // Add new comment to the list
+            setComments([data, ...comments]);
+            setCommentText('');
+            setReplyingTo(null);
+
+            // Update post comments count
+            await supabase.rpc('increment_comments_count', { post_id: postId });
+
+            console.log('✅ Comment posted successfully');
+        } catch (error: any) {
+            console.error('❌ Error posting comment:', error);
+            Alert.alert('Error', 'Failed to post comment');
+        } finally {
+            setPosting(false);
+        }
+    };
+
+    const renderComment = ({ item }: { item: any }) => {
+        const author = item.users;
+        const timeAgo = new Date(item.created_at).toLocaleDateString();
+
+        return (
+            <View style={styles.commentContainer}>
+                <TouchableOpacity onPress={() => router.push('/user-profile' as any)}>
+                    <Image
+                        source={{ uri: author?.avatar_url || 'https://i.pravatar.cc/150?img=1' }}
+                        style={styles.avatar}
+                    />
+                </TouchableOpacity>
+                <View style={styles.commentContent}>
+                    <View style={styles.commentHeader}>
+                        <TouchableOpacity onPress={() => router.push('/user-profile' as any)}>
+                            <Text style={styles.userName}>{author?.full_name || 'User'}</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.timestamp}>{timeAgo}</Text>
                     </View>
-                )}
+                    <Text style={styles.commentText}>{item.content}</Text>
+                    <View style={styles.commentActions}>
+                        <TouchableOpacity
+                            style={styles.actionButton}
+                            onPress={() => handleLikeComment(item.id, false)}
+                        >
+                            <Ionicons
+                                name="heart-outline"
+                                size={16}
+                                color="#666"
+                            />
+                            <Text style={styles.actionText}>
+                                {item.likes_count || 0}
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.actionButton}
+                            onPress={() => setReplyingTo(item.id)}
+                        >
+                            <Text style={styles.actionText}>Reply</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </View>
-        </View>
-    );
+        );
+    };
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -182,14 +235,26 @@ export default function PostCommentsScreen() {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
-                {/* Comments List */}
-                <FlatList
-                    data={comments}
-                    renderItem={renderComment}
-                    keyExtractor={(item) => item.id}
-                    contentContainerStyle={styles.listContent}
-                    showsVerticalScrollIndicator={false}
-                />
+                {loading ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#4ECDC4" />
+                        <Text style={styles.loadingText}>Loading comments...</Text>
+                    </View>
+                ) : comments.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="chatbubble-outline" size={64} color="#CCC" />
+                        <Text style={styles.emptyText}>No comments yet</Text>
+                        <Text style={styles.emptySubtext}>Be the first to comment!</Text>
+                    </View>
+                ) : (
+                    <FlatList
+                        data={comments}
+                        renderItem={renderComment}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={styles.listContent}
+                        showsVerticalScrollIndicator={false}
+                    />
+                )}
 
                 {/* Input */}
                 <View style={styles.inputContainer}>
@@ -203,7 +268,7 @@ export default function PostCommentsScreen() {
                     )}
                     <View style={styles.inputRow}>
                         <Image
-                            source={{ uri: 'https://i.pravatar.cc/150?img=10' }}
+                            source={{ uri: user?.avatar_url || 'https://i.pravatar.cc/150?img=10' }}
                             style={styles.inputAvatar}
                         />
                         <TextInput
@@ -213,17 +278,22 @@ export default function PostCommentsScreen() {
                             value={commentText}
                             onChangeText={setCommentText}
                             multiline
+                            editable={!posting}
                         />
                         <TouchableOpacity
-                            style={[styles.sendButton, !commentText.trim() && styles.sendButtonDisabled]}
+                            style={[styles.sendButton, (!commentText.trim() || posting) && styles.sendButtonDisabled]}
                             onPress={handlePostComment}
-                            disabled={!commentText.trim()}
+                            disabled={!commentText.trim() || posting}
                         >
-                            <Ionicons
-                                name="send"
-                                size={20}
-                                color={commentText.trim() ? '#4ECDC4' : '#CCC'}
-                            />
+                            {posting ? (
+                                <ActivityIndicator size="small" color="#4ECDC4" />
+                            ) : (
+                                <Ionicons
+                                    name="send"
+                                    size={20}
+                                    color={commentText.trim() ? '#4ECDC4' : '#CCC'}
+                                />
+                            )}
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -372,5 +442,33 @@ const styles = StyleSheet.create({
     },
     sendButtonDisabled: {
         opacity: 0.5,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 40,
+    },
+    loadingText: {
+        marginTop: 16,
+        fontSize: 14,
+        color: '#666',
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 40,
+    },
+    emptyText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#666',
+        marginTop: 16,
+    },
+    emptySubtext: {
+        fontSize: 14,
+        color: '#999',
+        marginTop: 8,
     },
 });

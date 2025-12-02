@@ -1,17 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    Dimensions,
-    Image,
-    Modal,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Animated,
+  Dimensions,
+  Image,
+  Modal,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -58,7 +58,7 @@ export default function StoryViewer({ visible, stories, currentIndex, onClose, o
   const startStoryProgress = () => {
     // Reset progress
     setProgress(new Animated.Value(0));
-    
+
     // Animate progress bar
     progressAnimation.current = Animated.timing(progress, {
       toValue: 1,
@@ -85,20 +85,20 @@ export default function StoryViewer({ visible, stories, currentIndex, onClose, o
       progress.addListener(({ value }) => {
         const remainingProgress = value;
         const remainingDuration = STORY_DURATION * (1 - remainingProgress);
-        
+
         progressAnimation.current = Animated.timing(progress, {
           toValue: 1,
           duration: remainingDuration,
           useNativeDriver: false,
         });
-        
+
         progressAnimation.current.start(({ finished }) => {
           if (finished) {
             handleNextStory();
           }
         });
       });
-      
+
       setIsPaused(false);
     }
   };
@@ -145,8 +145,8 @@ export default function StoryViewer({ visible, stories, currentIndex, onClose, o
       'Are you sure you want to delete this story? This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
           onPress: () => {
             // Close story viewer and notify parent to delete
@@ -206,27 +206,18 @@ export default function StoryViewer({ visible, stories, currentIndex, onClose, o
 
   const currentStory = stories[currentStoryIndex];
 
-  // Mock data for viewers - in real app, this would come from your backend
-  const mockViewers = [
-    { id: 1, name: 'Sarah Johnson', avatar: 'https://i.pravatar.cc/150?img=5', viewedAt: Date.now() - 300000 },
-    { id: 2, name: 'Mike Chen', avatar: 'https://i.pravatar.cc/150?img=3', viewedAt: Date.now() - 600000 },
-    { id: 3, name: 'Emma Wilson', avatar: 'https://i.pravatar.cc/150?img=4', viewedAt: Date.now() - 900000 },
-    { id: 4, name: 'Alex Turner', avatar: 'https://i.pravatar.cc/150?img=6', viewedAt: Date.now() - 1200000 },
-    { id: 5, name: 'Jessica Brown', avatar: 'https://i.pravatar.cc/150?img=7', viewedAt: Date.now() - 1800000 },
-  ].slice(0, Math.max(currentStory.views, 3)); // Show at least 3 viewers for demo
-
-  console.log('Current story views:', currentStory.views);
-  console.log('Mock viewers count:', mockViewers.length);
+  // Mock data for viewers - removed as we don't have a viewers table yet
+  const mockViewers: any[] = [];
 
   return (
     <Modal visible={visible} transparent={true} animationType="fade">
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="#000" />
-        
+
         {/* Story Content */}
         <View style={styles.storyContainer}>
           <Image source={{ uri: currentStory.uri }} style={styles.storyImage} />
-          
+
           {/* Top Overlay */}
           <View style={styles.topOverlay}>
             {/* Progress Bars */}
@@ -241,12 +232,12 @@ export default function StoryViewer({ visible, stories, currentIndex, onClose, o
                           width: index < currentStoryIndex
                             ? '100%'
                             : index === currentStoryIndex
-                            ? progress.interpolate({
+                              ? progress.interpolate({
                                 inputRange: [0, 1],
                                 outputRange: ['0%', '100%'],
                                 extrapolate: 'clamp',
                               })
-                            : '0%',
+                              : '0%',
                         },
                       ]}
                     />
@@ -264,8 +255,8 @@ export default function StoryViewer({ visible, stories, currentIndex, onClose, o
                 </Text>
               </View>
               <View style={styles.headerButtons}>
-                <TouchableOpacity 
-                  onPress={onClose} 
+                <TouchableOpacity
+                  onPress={onClose}
                   style={[
                     styles.closeButton,
                     closeButtonPressed && styles.closeButtonPressed
@@ -288,13 +279,13 @@ export default function StoryViewer({ visible, stories, currentIndex, onClose, o
             {currentStory.caption && (
               <Text style={styles.caption}>{currentStory.caption}</Text>
             )}
-            
+
             <View style={styles.storyActions}>
               <TouchableOpacity style={styles.viewCount} onPress={handleShowViewers}>
                 <Ionicons name="eye" size={16} color="#fff" />
                 <Text style={styles.viewCountText}>{currentStory.views} views</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity style={styles.actionButton}>
                 <Ionicons name="heart-outline" size={24} color="#fff" />
               </TouchableOpacity>
@@ -324,7 +315,7 @@ export default function StoryViewer({ visible, stories, currentIndex, onClose, o
         animationType="slide"
         onRequestClose={() => setShowOptionsMenu(false)}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.optionsOverlay}
           activeOpacity={1}
           onPress={() => setShowOptionsMenu(false)}
@@ -336,30 +327,30 @@ export default function StoryViewer({ visible, stories, currentIndex, onClose, o
                 <Ionicons name="close" size={24} color="#fff" />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.optionsList}>
               <TouchableOpacity style={styles.optionItem} onPress={handleShareStory}>
                 <Ionicons name="share-outline" size={24} color="#4ECDC4" />
                 <Text style={styles.optionText}>Share Story</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity style={styles.optionItem} onPress={handleCopyLink}>
                 <Ionicons name="link-outline" size={24} color="#4ECDC4" />
                 <Text style={styles.optionText}>Copy Link</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity style={styles.optionItem} onPress={handleStoryInfo}>
                 <Ionicons name="information-circle-outline" size={24} color="#4ECDC4" />
                 <Text style={styles.optionText}>Story Info</Text>
               </TouchableOpacity>
-              
+
               <View style={styles.optionsDivider} />
-              
+
               <TouchableOpacity style={styles.optionItem} onPress={handleReportStory}>
                 <Ionicons name="flag-outline" size={24} color="#FF6B6B" />
                 <Text style={[styles.optionText, styles.dangerText]}>Report Story</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity style={styles.optionItem} onPress={handleDeleteStory}>
                 <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
                 <Text style={[styles.optionText, styles.dangerText]}>Delete Story</Text>
@@ -377,7 +368,7 @@ export default function StoryViewer({ visible, stories, currentIndex, onClose, o
         onRequestClose={() => setShowViewersModal(false)}
       >
         <View style={styles.optionsOverlay}>
-          <TouchableOpacity 
+          <TouchableOpacity
             activeOpacity={1}
             style={{ flex: 1 }}
             onPress={() => setShowViewersModal(false)}
@@ -389,27 +380,13 @@ export default function StoryViewer({ visible, stories, currentIndex, onClose, o
                   <Ionicons name="close" size={24} color="#fff" />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={styles.viewersList}>
-                {mockViewers.length > 0 ? (
-                  mockViewers.map((viewer) => (
-                    <View key={viewer.id} style={styles.viewerItem}>
-                      <Image source={{ uri: viewer.avatar }} style={styles.viewerAvatar} />
-                      <View style={styles.viewerInfo}>
-                        <Text style={styles.viewerName}>{viewer.name}</Text>
-                        <Text style={styles.viewerTime}>
-                          {Math.floor((Date.now() - viewer.viewedAt) / 60000)} min ago
-                        </Text>
-                      </View>
-                    </View>
-                  ))
-                ) : (
-                  <View style={styles.noViewersContainer}>
-                    <Ionicons name="eye-off" size={48} color="rgba(255, 255, 255, 0.3)" />
-                    <Text style={styles.noViewersText}>No views yet</Text>
-                    <Text style={styles.noViewersSubtext}>Your story will appear here when people view it</Text>
-                  </View>
-                )}
+                <View style={styles.noViewersContainer}>
+                  <Ionicons name="eye-off" size={48} color="rgba(255, 255, 255, 0.3)" />
+                  <Text style={styles.noViewersText}>No views yet</Text>
+                  <Text style={styles.noViewersSubtext}>Your story will appear here when people view it</Text>
+                </View>
               </View>
             </View>
           </TouchableOpacity>
