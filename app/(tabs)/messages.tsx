@@ -6,13 +6,13 @@ import {
     Alert,
     Image,
     RefreshControl,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface Conversation {
     id: string;
@@ -39,7 +39,7 @@ export default function MessagesScreen() {
 
     const loadConversations = async () => {
         setLoading(true);
-        
+
         // Mock conversations data - in a real app, this would fetch from an API
         const mockConversations: Conversation[] = [
             {
@@ -150,24 +150,24 @@ export default function MessagesScreen() {
                     <View style={styles.onlineIndicator} />
                 )}
             </View>
-            
+
             <View style={styles.conversationContent}>
                 <View style={styles.conversationHeader}>
                     <Text style={styles.userName}>{conversation.userName}</Text>
                     <Text style={styles.messageTime}>{conversation.lastMessageTime}</Text>
                 </View>
-                
+
                 <View style={styles.messageContainer}>
-                    <Text 
+                    <Text
                         style={[
                             styles.lastMessage,
                             conversation.unreadCount > 0 && styles.unreadMessage
-                        ]} 
+                        ]}
                         numberOfLines={1}
                     >
                         {conversation.isTyping ? 'typing...' : conversation.lastMessage}
                     </Text>
-                    
+
                     {conversation.unreadCount > 0 && (
                         <View style={styles.unreadBadge}>
                             <Text style={styles.unreadCount}>{conversation.unreadCount}</Text>
@@ -182,7 +182,7 @@ export default function MessagesScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.container}>
+            <SafeAreaView style={styles.container} edges={['top']}>
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#007AFF" />
                     <Text style={styles.loadingText}>Loading messages...</Text>
@@ -192,7 +192,7 @@ export default function MessagesScreen() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Messages</Text>
@@ -216,7 +216,7 @@ export default function MessagesScreen() {
                         <Text style={styles.emptyStateDescription}>
                             Start a conversation with hosts or other travelers
                         </Text>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.startConversationButton}
                             onPress={handleNewMessage}
                         >

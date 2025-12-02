@@ -151,7 +151,7 @@ export default function HomeScreen() {
           userStoryMap.set(userId, {
             id: userId,
             name: story.users.full_name || story.users.username,
-            image: story.media_urls[0], // Use story image, no fallback
+            image: story.users.avatar_url || story.media_urls[0], // Avatar or story image
             isLive: false,
             hasStory: true,
             stories: []
@@ -167,10 +167,13 @@ export default function HomeScreen() {
       });
 
       // Add "Your Story" at the beginning
+      // Use user avatar, or if they have a story, use the latest story image
+      const myStoryImage = user?.avatar_url || (userStories.length > 0 ? userStories[userStories.length - 1].uri : null);
+
       const myStory = {
         id: 'me',
         name: 'Your Story',
-        image: user?.avatar_url, // No fallback dummy image
+        image: myStoryImage,
         isLive: false,
         hasStory: userStories.length > 0
       };
