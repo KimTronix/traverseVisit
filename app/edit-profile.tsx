@@ -3,159 +3,133 @@ import {
     View,
     Text,
     StyleSheet,
-    TextInput,
+    ScrollView,
     TouchableOpacity,
     Image,
-    ScrollView,
+    TextInput,
     Alert,
-    KeyboardAvoidingView,
-    Platform,
     ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useAuth } from './context/AuthContext';
+import { supabase } from '../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
-import { saveProfile, loadProfile, ProfileData } from '../utils/storage';
 
 export default function EditProfileScreen() {
     const router = useRouter();
-    const [loading, setLoading] = useState(false);
+    const { user } = useAuth();
+    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    // Form state
-    const [profileImage, setProfileImage] = useState<string>('https://i.pravatar.cc/150?img=12');
-    const [name, setName] = useState('');
+    const [fullName, setFullName] = useState('');
+    const [username, setUsername] = useState('');
     const [bio, setBio] = useState('');
     const [location, setLocation] = useState('');
+    const [avatarUrl, setAvatarUrl] = useState('');
 
-    const MAX_BIO_LENGTH = 150;
-
-    // Load existing profile on mount
     useEffect(() => {
-        loadExistingProfile();
-    }, []);
+        loadUserData();
+    }, [user]);
 
-    const loadExistingProfile = async () => {
-        setLoading(true);
+    const loadUserData = async () => {
+        if (!user) return;
+
         try {
-            const profile = await loadProfile();
-            if (profile) {
-                setName(profile.name);
-                setBio(profile.bio);
-                setLocation(profile.location);
-                if (profile.profileImage) {
-                    setProfileImage(profile.profileImage);
-                }
-            } else {
-                // Set defaults if no profile exists
-                setName('Alex Travels');
-                setBio('Adventure seeker & travel photographer.\\nSharing the world one photo at a time.');
-                setLocation('📍 Based in London');
+            const { data, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (error) throw error;
+
+            if (data) {
+                setFullName(data.full_name || '');
+                setUsername(data.username || '');
+                setBio(data.bio || '');
+                setLocation(data.location || '');
+                setAvatarUrl(data.avatar_url || '');
             }
         } catch (error) {
-            console.error('Error loading profile:', error);
+            console.error('Error loading user data:', error);
+            Alert.alert('Error', 'Failed to load profile data');
         } finally {
             setLoading(false);
         }
     };
 
-    // Request permissions
-    const requestPermissions = async () => {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Please grant photo library access to select images.');
-            return false;
-        }
-        return true;
-    };
-
-    const requestCameraPermissions = async () => {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Please grant camera access to take photos.');
-            return false;
-        }
-        return true;
-    };
-
-    // Pick image from gallery
-    const pickImageFromGallery = async () => {
-        const hasPermission = await requestPermissions();
-        if (!hasPermission) return;
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-        });
-
-        if (!result.canceled && result.assets[0]) {
-            setProfileImage(result.assets[0].uri);
-        }
-    };
-
-    // Take photo with camera
-    const takePhoto = async () => {
-        const hasPermission = await requestCameraPermissions();
-        if (!hasPermission) return;
-
-        const result = await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-        });
-
-        if (!result.canceled && result.assets[0]) {
-            setProfileImage(result.assets[0].uri);
-        }
-    };
-
-    // Show image picker options
-    const showImagePickerOptions = () => {
-        Alert.alert(
-            'Update Profile Picture',
-            'Choose an option',
-            [
-                { text: 'Take Photo', onPress: takePhoto },
-                { text: 'Choose from Library', onPress: pickImageFromGallery },
-                { text: 'Cancel', style: 'cancel' },
-            ],
-            { cancelable: true }
-        );
-    };
-
-    // Save profile
     const handleSave = async () => {
-        if (!name.trim()) {
-            Alert.alert('Error', 'Please enter your name');
-            return;
-        }
+        if (!user) return;
 
         setSaving(true);
         try {
-            const existingProfile = await loadProfile();
-            const profileData: ProfileData = {
-                name: name.trim(),
-                username: existingProfile?.username || '@alextravels',
-                bio: bio.trim(),
-                location: location.trim(),
-                profileImage: profileImage,
-                followers: existingProfile?.followers || '1.5k',
-                following: existingProfile?.following || 800,
-                posts: existingProfile?.posts || 250,
-            };
+            const { error } = await supabase
+                .from('users')
+                .update({
+                    full_name: fullName,
+                    username: username,
+                    bio: bio,
+                    location: location,
+                })
+                .eq('id', user.id);
 
-            await saveProfile(profileData);
+            if (error) throw error;
+
             Alert.alert('Success', 'Profile updated successfully!', [
-                { text: 'OK', onPress: () => router.back() }
+                { text: 'OK', onPress: () => router.back() },
             ]);
-        } catch (error) {
-            console.error('Error saving profile:', error);
-            Alert.alert('Error', 'Failed to save profile. Please try again.');
+        } catch (error: any) {
+            console.error('Error updating profile:', error);
+            Alert.alert('Error', error.message || 'Failed to update profile');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const pickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to make this work!');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+        });
+
+        if (!result.canceled && result.assets[0]) {
+            try {
+                setSaving(true);
+
+                // Import upload function dynamically
+                const { uploadAvatar } = await import('../utils/imageUpload');
+
+                // Upload to Supabase Storage
+                const publicUrl = await uploadAvatar(result.assets[0].uri, user!.id);
+
+                // Update user profile with new avatar URL
+                const { error } = await supabase
+                    .from('users')
+                    .update({ avatar_url: publicUrl })
+                    .eq('id', user!.id);
+
+                if (error) throw error;
+
+                // Update local state
+                setAvatarUrl(publicUrl);
+
+                Alert.alert('Success', 'Profile picture updated successfully!');
+            } catch (error: any) {
+                console.error('Error uploading avatar:', error);
+                Alert.alert('Error', error.message || 'Failed to upload profile picture');
+            } finally {
+                setSaving(false);
+            }
         }
     };
 
@@ -173,85 +147,79 @@ export default function EditProfileScreen() {
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="close" size={28} color="#333" />
+                <TouchableOpacity onPress={() => router.back()} style={styles.cancelButton}>
+                    <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Edit Profile</Text>
-                <TouchableOpacity onPress={handleSave} disabled={saving}>
+                <TouchableOpacity onPress={handleSave} style={styles.saveButton} disabled={saving}>
                     {saving ? (
                         <ActivityIndicator size="small" color="#4ECDC4" />
                     ) : (
-                        <Text style={styles.saveButton}>Save</Text>
+                        <Text style={styles.saveText}>Save</Text>
                     )}
                 </TouchableOpacity>
             </View>
 
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardView}
-            >
-                <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                    {/* Profile Picture Section */}
-                    <View style={styles.imageSection}>
-                        <Image source={{ uri: profileImage }} style={styles.profileImage} />
-                        <TouchableOpacity style={styles.changePhotoButton} onPress={showImagePickerOptions}>
-                            <Ionicons name="camera" size={24} color="#4ECDC4" />
-                            <Text style={styles.changePhotoText}>Change Photo</Text>
-                        </TouchableOpacity>
+            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+                {/* Profile Photo */}
+                <View style={styles.photoSection}>
+                    <Image
+                        source={{ uri: avatarUrl }}
+                        style={styles.profilePhoto}
+                    />
+                    <TouchableOpacity style={styles.changePhotoButton} onPress={pickImage}>
+                        <Text style={styles.changePhotoText}>Change Photo</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Form Fields */}
+                <View style={styles.formSection}>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Name</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={fullName}
+                            onChangeText={setFullName}
+                            placeholder="Enter your name"
+                        />
                     </View>
 
-                    {/* Form Section */}
-                    <View style={styles.formSection}>
-                        {/* Name Input */}
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Name</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={name}
-                                onChangeText={setName}
-                                placeholder="Enter your name"
-                                placeholderTextColor="#999"
-                            />
-                        </View>
-
-                        {/* Bio Input */}
-                        <View style={styles.inputGroup}>
-                            <View style={styles.labelRow}>
-                                <Text style={styles.label}>Bio</Text>
-                                <Text style={styles.charCount}>
-                                    {bio.length}/{MAX_BIO_LENGTH}
-                                </Text>
-                            </View>
-                            <TextInput
-                                style={[styles.input, styles.bioInput]}
-                                value={bio}
-                                onChangeText={(text) => {
-                                    if (text.length <= MAX_BIO_LENGTH) {
-                                        setBio(text);
-                                    }
-                                }}
-                                placeholder="Tell us about yourself"
-                                placeholderTextColor="#999"
-                                multiline
-                                numberOfLines={4}
-                                textAlignVertical="top"
-                            />
-                        </View>
-
-                        {/* Location Input */}
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Location</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={location}
-                                onChangeText={setLocation}
-                                placeholder="📍 Your location"
-                                placeholderTextColor="#999"
-                            />
-                        </View>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Username</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={username}
+                            onChangeText={setUsername}
+                            placeholder="Enter username"
+                            autoCapitalize="none"
+                        />
                     </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Bio</Text>
+                        <TextInput
+                            style={[styles.input, styles.textArea]}
+                            value={bio}
+                            onChangeText={setBio}
+                            placeholder="Tell us about yourself"
+                            multiline
+                            numberOfLines={4}
+                        />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Location</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={location}
+                            onChangeText={setLocation}
+                            placeholder="City, Country"
+                        />
+                    </View>
+                </View>
+
+                <View style={{ height: 40 }} />
+            </ScrollView>
         </SafeAreaView>
     );
 }
@@ -259,12 +227,7 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFAFA',
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: '#FFF',
     },
     header: {
         flexDirection: 'row',
@@ -272,48 +235,46 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: '#FFF',
         borderBottomWidth: 1,
         borderBottomColor: '#EFEFEF',
     },
-    backButton: {
+    cancelButton: {
         padding: 4,
     },
+    cancelText: {
+        fontSize: 16,
+        color: '#666',
+    },
     headerTitle: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '600',
         color: '#333',
     },
     saveButton: {
+        padding: 4,
+    },
+    saveText: {
         fontSize: 16,
         fontWeight: '600',
         color: '#4ECDC4',
-        paddingHorizontal: 8,
     },
-    keyboardView: {
+    content: {
         flex: 1,
     },
-    scrollView: {
-        flex: 1,
-    },
-    imageSection: {
+    photoSection: {
         alignItems: 'center',
-        paddingVertical: 32,
-        backgroundColor: '#FFF',
+        paddingVertical: 30,
         borderBottomWidth: 1,
-        borderBottomColor: '#EFEFEF',
+        borderBottomColor: '#F5F5F5',
     },
-    profileImage: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
+    profilePhoto: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
         marginBottom: 16,
-        backgroundColor: '#F0F0F0',
     },
     changePhotoButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
+        paddingVertical: 8,
     },
     changePhotoText: {
         fontSize: 16,
@@ -321,17 +282,10 @@ const styles = StyleSheet.create({
         color: '#4ECDC4',
     },
     formSection: {
-        paddingHorizontal: 16,
-        paddingTop: 24,
+        padding: 20,
     },
     inputGroup: {
-        marginBottom: 24,
-    },
-    labelRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 20,
     },
     label: {
         fontSize: 14,
@@ -339,22 +293,65 @@ const styles = StyleSheet.create({
         color: '#333',
         marginBottom: 8,
     },
-    charCount: {
-        fontSize: 12,
-        color: '#999',
-    },
     input: {
-        backgroundColor: '#FFF',
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-        borderRadius: 8,
+        backgroundColor: '#F5F5F5',
+        borderRadius: 10,
         paddingHorizontal: 16,
         paddingVertical: 12,
         fontSize: 16,
         color: '#333',
     },
-    bioInput: {
-        height: 100,
-        paddingTop: 12,
+    textArea: {
+        minHeight: 100,
+        textAlignVertical: 'top',
+    },
+    verifiedInput: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    verifiedBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    verifiedText: {
+        fontSize: 13,
+        color: '#4ECDC4',
+        fontWeight: '500',
+    },
+    verifyText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#4ECDC4',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#F0F0F0',
+        marginVertical: 20,
+    },
+    section: {
+        marginTop: 8,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#333',
+        marginBottom: 16,
+    },
+    settingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+    },
+    settingLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    settingLabel: {
+        fontSize: 16,
+        color: '#333',
     },
 });

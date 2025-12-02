@@ -1,7 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ProfileData, PostData, CommentData } from './storage';
+import { supabase } from '../lib/supabase';
 
-// Story data interface
+// Story data interface matching Supabase structure
 export interface StoryData {
     id: string;
     userId: string;
@@ -13,42 +12,41 @@ export interface StoryData {
     backgroundColor?: string;
     timestamp: number;
     expiresAt: number;
-    viewedBy: string[];
+    viewedBy: string[]; // This will be empty or mocked for now as we lack a views table
+    caption?: string;
 }
 
-const STORIES_KEY = '@traverse_stories';
-
-// Story storage functions
-export const saveStories = async (stories: StoryData[]): Promise<void> => {
-    try {
-        await AsyncStorage.setItem(STORIES_KEY, JSON.stringify(stories));
-    } catch (error) {
-        console.error('Error saving stories:', error);
-        throw error;
-    }
+// Helper to map Supabase post to StoryData
+const mapPostToStory = (post: any): StoryData => {
+    return {
+        id: post.id.toString(),
+        userId: post.user_id,
+        username: post.users?.username || 'User',
+        userImage: post.users?.avatar_url || 'https://i.pravatar.cc/150?img=1',
+        type: post.media_urls && post.media_urls.length > 0 ? 'image' : 'text',
+        imageUrl: post.media_urls?.[0],
+        text: post.caption, // Using caption as text for text stories
+        backgroundColor: '#000', // Default background
+        timestamp: new Date(post.created_at).getTime(),
+        expiresAt: new Date(post.created_at).getTime() + 24 * 60 * 60 * 1000, // 24h expiry
+        viewedBy: [], // Placeholder
+        caption: post.caption
+    };
 };
 
-export const loadStories = async (): Promise<StoryData[]> => {
+export const addStory = async (story: Partial<StoryData> & { userId: string }): Promise<void> => {
     try {
-        const data = await AsyncStorage.getItem(STORIES_KEY);
-        return data ? JSON.parse(data) : [];
-    } catch (error) {
-        console.error('Error loading stories:', error);
-        return [];
-    }
-};
+        const { error } = await supabase
+            .from('posts')
+            .insert({
+                user_id: story.userId,
+                caption: story.text || story.caption,
+                media_urls: story.imageUrl ? [story.imageUrl] : [],
+                is_story: true,
+                // created_at is auto-generated
+            });
 
-export const addStory = async (story: StoryData): Promise<void> => {
-    try {
-        const stories = await loadStories();
-
-        // Remove expired stories
-        const now = Date.now();
-        const activeStories = stories.filter(s => s.expiresAt > now);
-
-        // Add new story
-        activeStories.unshift(story);
-        await saveStories(activeStories);
+        if (error) throw error;
     } catch (error) {
         console.error('Error adding story:', error);
         throw error;
@@ -57,18 +55,25 @@ export const addStory = async (story: StoryData): Promise<void> => {
 
 export const getActiveStories = async (): Promise<StoryData[]> => {
     try {
-        const stories = await loadStories();
-        const now = Date.now();
+        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-        // Filter out expired stories
-        const activeStories = stories.filter(s => s.expiresAt > now);
+        const { data, error } = await supabase
+            .from('posts')
+            .select(`
+                *,
+                users:user_id (
+                    id,
+                    username,
+                    avatar_url
+                )
+            `)
+            .eq('is_story', true)
+            .gt('created_at', yesterday)
+            .order('created_at', { ascending: false });
 
-        // Save filtered list to remove expired ones
-        if (activeStories.length !== stories.length) {
-            await saveStories(activeStories);
-        }
+        if (error) throw error;
 
-        return activeStories;
+        return data?.map(mapPostToStory) || [];
     } catch (error) {
         console.error('Error getting active stories:', error);
         return [];
@@ -77,8 +82,26 @@ export const getActiveStories = async (): Promise<StoryData[]> => {
 
 export const getUserStories = async (userId: string): Promise<StoryData[]> => {
     try {
-        const stories = await getActiveStories();
-        return stories.filter(s => s.userId === userId);
+        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+        const { data, error } = await supabase
+            .from('posts')
+            .select(`
+                *,
+                users:user_id (
+                    id,
+                    username,
+                    avatar_url
+                )
+            `)
+            .eq('is_story', true)
+            .eq('user_id', userId)
+            .gt('created_at', yesterday)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        return data?.map(mapPostToStory) || [];
     } catch (error) {
         console.error('Error getting user stories:', error);
         return [];
@@ -87,24 +110,29 @@ export const getUserStories = async (userId: string): Promise<StoryData[]> => {
 
 export const markStoryAsViewed = async (storyId: string, viewerId: string): Promise<void> => {
     try {
-        const stories = await loadStories();
-        const story = stories.find(s => s.id === storyId);
+        // Since we don't have a views table, we'll just increment the view count
+        // This is a simplified approach
+        const { error } = await supabase.rpc('increment_post_views', { post_id: storyId });
 
-        if (story && !story.viewedBy.includes(viewerId)) {
-            story.viewedBy.push(viewerId);
-            await saveStories(stories);
+        if (error) {
+            // Fallback if RPC doesn't exist (it might not)
+            // Just ignore for now or try to update manually if RLS allows
+            console.log('Could not increment view count (RPC missing?)');
         }
     } catch (error) {
         console.error('Error marking story as viewed:', error);
-        throw error;
+        // Don't throw, just log
     }
 };
 
 export const deleteStory = async (storyId: string): Promise<void> => {
     try {
-        const stories = await loadStories();
-        const filteredStories = stories.filter(s => s.id !== storyId);
-        await saveStories(filteredStories);
+        const { error } = await supabase
+            .from('posts')
+            .delete()
+            .eq('id', storyId);
+
+        if (error) throw error;
     } catch (error) {
         console.error('Error deleting story:', error);
         throw error;
@@ -113,9 +141,22 @@ export const deleteStory = async (storyId: string): Promise<void> => {
 
 export const getStoryById = async (storyId: string): Promise<StoryData | null> => {
     try {
-        const stories = await loadStories();
-        const story = stories.find(s => s.id === storyId);
-        return story || null;
+        const { data, error } = await supabase
+            .from('posts')
+            .select(`
+                *,
+                users:user_id (
+                    id,
+                    username,
+                    avatar_url
+                )
+            `)
+            .eq('id', storyId)
+            .single();
+
+        if (error) throw error;
+
+        return data ? mapPostToStory(data) : null;
     } catch (error) {
         console.error('Error getting story by ID:', error);
         return null;

@@ -16,10 +16,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { addPost, PostData } from '../utils/storage';
+import { supabase } from '../lib/supabase';
+import { useAuth } from './context/AuthContext';
 
 export default function CreatePostScreen() {
     const router = useRouter();
+    const { user } = useAuth();
     const [image, setImage] = useState<string | null>(null);
     const [caption, setCaption] = useState('');
     const [location, setLocation] = useState('');
@@ -99,6 +101,11 @@ export default function CreatePostScreen() {
 
     // Share post
     const handleSharePost = async () => {
+        if (!user) {
+            Alert.alert('Error', 'You must be logged in to create a post');
+            return;
+        }
+
         if (!image) {
             Alert.alert('Error', 'Please select an image for your post');
             return;
@@ -111,20 +118,33 @@ export default function CreatePostScreen() {
 
         setIsPosting(true);
         try {
-            const newPost: PostData = {
-                id: Date.now().toString(),
-                username: 'AlexTravels',
-                location: location.trim() || 'Unknown Location',
-                userImage: 'https://i.pravatar.cc/150?img=12',
-                postImage: image,
-                likes: 0,
-                caption: caption.trim(),
-                budget: budget.trim(),
-                isPinned: false,
-                timestamp: Date.now(),
-            };
+            console.log('📝 Creating post...');
 
-            await addPost(newPost);
+            // Upload image to Supabase Storage
+            const { uploadPostImage } = await import('../utils/imageUpload');
+            const publicUrl = await uploadPostImage(image, user.id);
+
+            const { data, error } = await supabase
+                .from('posts')
+                .insert({
+                    user_id: user.id,
+                    caption: caption.trim(),
+                    media_urls: [publicUrl], // Store uploaded URL
+                    media_type: 'photo',
+                    location_name: location.trim() || null,
+                    min_budget: budget.trim() ? parseFloat(budget.replace(/[^0-9.]/g, '')) : null,
+                    currency: 'USD',
+                    is_story: false,
+                })
+                .select()
+                .single();
+
+            if (error) {
+                console.error('❌ Error creating post:', error);
+                throw error;
+            }
+
+            console.log('✅ Post created successfully:', data);
 
             Alert.alert('Success', 'Your post has been shared!', [
                 {
@@ -135,9 +155,9 @@ export default function CreatePostScreen() {
                     },
                 },
             ]);
-        } catch (error) {
-            console.error('Error creating post:', error);
-            Alert.alert('Error', 'Failed to share post. Please try again.');
+        } catch (error: any) {
+            console.error('❌ Exception creating post:', error);
+            Alert.alert('Error', error.message || 'Failed to share post. Please try again.');
         } finally {
             setIsPosting(false);
         }

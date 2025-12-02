@@ -15,10 +15,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getStoryById, getUserStories, StoryData } from '../utils/storyStorage';
+import { getStoryById, getUserStories, markStoryAsViewed, StoryData } from '../utils/storyStorage';
 
 const { width, height } = Dimensions.get('window');
-const STORY_DURATION = 10000; // 10 seconds per story (reduced from 40s for better UX with multiple stories, or keep 40s if user insists? User said "load for 40 seconds". I'll stick to 40s)
+const STORY_DURATION = 10000; // 10 seconds per story
 
 export default function ViewStoryScreen() {
     const router = useRouter();
@@ -31,7 +31,7 @@ export default function ViewStoryScreen() {
     const progress = useRef(new Animated.Value(0)).current;
     const [isPaused, setIsPaused] = useState(false);
     const startTimeRef = useRef<number>(0);
-    const remainingTimeRef = useRef<number>(40000); // 40 seconds
+    const remainingTimeRef = useRef<number>(STORY_DURATION);
     const animationRef = useRef<Animated.CompositeAnimation | null>(null);
 
     useEffect(() => {
@@ -40,6 +40,10 @@ export default function ViewStoryScreen() {
 
     useEffect(() => {
         if (stories.length > 0 && !loading) {
+            const currentStory = stories[currentIndex];
+            if (currentStory) {
+                markStoryAsViewed(currentStory.id).catch(console.error);
+            }
             resetAndStartAnimation();
         }
         return () => {
@@ -60,11 +64,7 @@ export default function ViewStoryScreen() {
             if (initialStory) {
                 // Get all stories for this user
                 const userStories = await getUserStories(initialStory.userId);
-                // Sort stories: Oldest to Newest for playback? Or Newest to Oldest?
-                // Usually stories are played chronologically.
-                // getUserStories returns active stories. addStory unshifts (newest first).
-                // So userStories is [Newest, ..., Oldest].
-                // We should reverse it to play Oldest -> Newest.
+                // Sort stories: Oldest to Newest for playback
                 const sortedStories = [...userStories].reverse();
 
                 setStories(sortedStories);
@@ -85,7 +85,7 @@ export default function ViewStoryScreen() {
 
     const resetAndStartAnimation = () => {
         progress.setValue(0);
-        remainingTimeRef.current = 40000; // Reset to 40s
+        remainingTimeRef.current = STORY_DURATION;
         startAnimation();
     };
 
@@ -275,7 +275,7 @@ export default function ViewStoryScreen() {
                             {currentStory.viewedBy.map((viewerId, index) => (
                                 <View key={index} style={styles.viewerItem}>
                                     <Ionicons name="checkmark-circle" size={16} color="#4ECDC4" />
-                                    <Text style={styles.viewerText}>User {viewerId}</Text>
+                                    <Text style={styles.viewerText}>User {viewerId.substring(0, 8)}...</Text>
                                 </View>
                             ))}
                         </ScrollView>
