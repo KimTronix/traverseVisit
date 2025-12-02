@@ -8,6 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "eas-build-pre-install": "npm config set legacy-peer-deps true",
     "lint": "expo lint"
   },
   "dependencies": {

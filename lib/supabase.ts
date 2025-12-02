@@ -13,9 +13,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 // Replace localhost with your machine's IP for mobile testing
 // You can find your IP by running: ipconfig (Windows) or ifconfig (Mac/Linux)
-const processedUrl = supabaseUrl.includes('localhost.sslip.io')
-    ? supabaseUrl.replace('localhost.sslip.io', '10.0.2.2') // Android emulator
-    : supabaseUrl;
+const processedUrl = supabaseUrl
 
 export const supabase = createClient(processedUrl, supabaseAnonKey, {
     auth: {

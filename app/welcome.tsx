@@ -61,12 +61,12 @@ export default function WelcomeScreen() {
                         <Text style={styles.loginButtonText}>Already have an account? Login</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity
+                    {/* <TouchableOpacity
                         style={styles.guestButton}
                         onPress={() => router.replace('/(tabs)' as any)}
                     >
                         <Text style={styles.guestButtonText}>Continue as Guest</Text>
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                 </View>
             </SafeAreaView>
         </View>
