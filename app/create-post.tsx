@@ -120,19 +120,21 @@ export default function CreatePostScreen() {
         try {
             console.log('📝 Creating post...');
 
-            // TODO: Upload image to Supabase Storage
-            // For now, we'll store the local URI (in production, upload to storage first)
+            // Upload image to Supabase Storage
+            const { uploadPostImage } = await import('../utils/imageUpload');
+            const publicUrl = await uploadPostImage(image, user.id);
 
             const { data, error } = await supabase
                 .from('posts')
                 .insert({
                     user_id: user.id,
                     caption: caption.trim(),
-                    media_urls: [image], // Store as array
+                    media_urls: [publicUrl], // Store uploaded URL
                     media_type: 'photo',
                     location_name: location.trim() || null,
                     min_budget: budget.trim() ? parseFloat(budget.replace(/[^0-9.]/g, '')) : null,
                     currency: 'USD',
+                    is_story: false,
                 })
                 .select()
                 .single();

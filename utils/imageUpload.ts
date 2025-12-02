@@ -1,23 +1,23 @@
-import { supabase } from './supabase';
-import * as FileSystem from 'expo-file-system';
+import { supabase } from '../lib/supabase';
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 
 /**
  * Upload an image to Supabase Storage
  * @param uri - Local file URI
- * @param bucket - Storage bucket name ('avatars', 'posts', 'stories')
+ * @param bucket - Storage bucket name ('avatars', 'posts', 'covers', 'properties', 'licenses', 'reviews', 'messages', 'destinations')
  * @param userId - User ID for organizing files
  * @returns Public URL of uploaded image
  */
 export async function uploadImage(
     uri: string,
-    bucket: 'avatars' | 'posts' | 'stories',
+    bucket: 'avatars' | 'posts' | 'covers' | 'properties' | 'licenses' | 'reviews' | 'messages' | 'destinations',
     userId: string
 ): Promise<string> {
     try {
         // Read file as base64
         const base64 = await FileSystem.readAsStringAsync(uri, {
-            encoding: FileSystem.EncodingType.Base64,
+            encoding: 'base64',
         });
 
         // Generate unique filename
@@ -61,7 +61,7 @@ export async function uploadImage(
  */
 export async function deleteImage(
     url: string,
-    bucket: 'avatars' | 'posts' | 'stories'
+    bucket: 'avatars' | 'posts' | 'covers' | 'properties' | 'licenses' | 'reviews' | 'messages' | 'destinations'
 ): Promise<void> {
     try {
         // Extract file path from URL
@@ -111,5 +111,5 @@ export async function uploadPostImage(uri: string, userId: string): Promise<stri
  * @returns Public URL of uploaded image
  */
 export async function uploadStoryImage(uri: string, userId: string): Promise<string> {
-    return uploadImage(uri, 'stories', userId);
+    return uploadImage(uri, 'posts', userId);
 }

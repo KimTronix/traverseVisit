@@ -2,42 +2,51 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Image,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStory } from '../contexts/StoryContext';
+import { useAuth } from './context/AuthContext';
+
+import { uploadImage } from '../utils/imageUpload';
 
 export default function StoryPreviewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { uri, type } = params as { uri: string; type: string };
   const { addUserStory } = useStory();
-  
+  const { user } = useAuth();
+
   const [caption, setCaption] = useState('');
   const [isPosting, setIsPosting] = useState(false);
 
   const handlePostStory = async () => {
+    if (!uri || !user) return;
     setIsPosting(true);
-    
+
     try {
-      // Add story using context
+      // Upload image to Supabase Storage
+      const uploadedUrl = await uploadImage(uri, 'posts', user.id);
+
+      if (!uploadedUrl) {
+        throw new Error('Failed to upload image');
+      }
+
+      // Add story using context with the remote URL
       addUserStory({
-        uri,
+        uri: uploadedUrl,
         type: type as 'image' | 'video',
         caption: caption || undefined,
         isLive: false,
       });
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
       Alert.alert(
         'Story Posted!',
         'Your story will be visible for 24 hours.',
@@ -46,6 +55,7 @@ export default function StoryPreviewScreen() {
         ]
       );
     } catch (error) {
+      console.error('Error posting story:', error);
       Alert.alert('Error', 'Failed to post story');
     } finally {
       setIsPosting(false);
@@ -60,7 +70,7 @@ export default function StoryPreviewScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
 
       {/* Header */}
@@ -69,7 +79,7 @@ export default function StoryPreviewScreen() {
           <Ionicons name="chevron-back" size={28} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Story Preview</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.postButton, isPosting && styles.postButtonDisabled]}
           onPress={handlePostStory}
           disabled={isPosting}
@@ -83,7 +93,7 @@ export default function StoryPreviewScreen() {
       {/* Story Preview */}
       <View style={styles.previewContainer}>
         <Image source={{ uri }} style={styles.storyImage} />
-        
+
         {/* Story Overlay */}
         <View style={styles.storyOverlay}>
           <View style={styles.captionContainer}>
@@ -98,7 +108,7 @@ export default function StoryPreviewScreen() {
             />
             <Text style={styles.characterCount}>{caption.length}/100</Text>
           </View>
-          
+
           {/* Story Info */}
           <View style={styles.storyInfo}>
             <View style={styles.expirationBadge}>
@@ -112,7 +122,7 @@ export default function StoryPreviewScreen() {
       {/* Story Options */}
       <View style={styles.optionsContainer}>
         <Text style={styles.optionsTitle}>Story Options</Text>
-        
+
         <View style={styles.optionsList}>
           <TouchableOpacity style={styles.optionItem}>
             <Ionicons name="musical-notes" size={24} color="#4ECDC4" />
@@ -122,7 +132,7 @@ export default function StoryPreviewScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.optionItem}>
             <Ionicons name="color-palette" size={24} color="#FF6B6B" />
             <View style={styles.optionContent}>
@@ -131,7 +141,7 @@ export default function StoryPreviewScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.optionItem}>
             <Ionicons name="location" size={24} color="#FFD93D" />
             <View style={styles.optionContent}>

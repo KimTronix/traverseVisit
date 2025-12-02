@@ -27,7 +27,6 @@ export default function EditProfileScreen() {
     const [username, setUsername] = useState('');
     const [bio, setBio] = useState('');
     const [location, setLocation] = useState('');
-    const [website, setWebsite] = useState('');
     const [avatarUrl, setAvatarUrl] = useState('');
 
     useEffect(() => {
@@ -51,7 +50,6 @@ export default function EditProfileScreen() {
                 setUsername(data.username || '');
                 setBio(data.bio || '');
                 setLocation(data.location || '');
-                setWebsite(data.website || '');
                 setAvatarUrl(data.avatar_url || '');
             }
         } catch (error) {
@@ -74,7 +72,6 @@ export default function EditProfileScreen() {
                     username: username,
                     bio: bio,
                     location: location,
-                    website: website,
                 })
                 .eq('id', user.id);
 
@@ -102,12 +99,37 @@ export default function EditProfileScreen() {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: [1, 1],
-            quality: 0.5,
+            quality: 0.7,
         });
 
         if (!result.canceled && result.assets[0]) {
-            // TODO: Upload to Supabase Storage and update profile
-            Alert.alert('Coming Soon', 'Profile photo upload will be implemented with Supabase Storage!');
+            try {
+                setSaving(true);
+
+                // Import upload function dynamically
+                const { uploadAvatar } = await import('../utils/imageUpload');
+
+                // Upload to Supabase Storage
+                const publicUrl = await uploadAvatar(result.assets[0].uri, user!.id);
+
+                // Update user profile with new avatar URL
+                const { error } = await supabase
+                    .from('users')
+                    .update({ avatar_url: publicUrl })
+                    .eq('id', user!.id);
+
+                if (error) throw error;
+
+                // Update local state
+                setAvatarUrl(publicUrl);
+
+                Alert.alert('Success', 'Profile picture updated successfully!');
+            } catch (error: any) {
+                console.error('Error uploading avatar:', error);
+                Alert.alert('Error', error.message || 'Failed to upload profile picture');
+            } finally {
+                setSaving(false);
+            }
         }
     };
 
@@ -192,18 +214,6 @@ export default function EditProfileScreen() {
                             value={location}
                             onChangeText={setLocation}
                             placeholder="City, Country"
-                        />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Website</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={website}
-                            onChangeText={setWebsite}
-                            placeholder="yourwebsite.com"
-                            autoCapitalize="none"
-                            keyboardType="url"
                         />
                     </View>
                 </View>
