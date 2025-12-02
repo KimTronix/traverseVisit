@@ -14,6 +14,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStory } from '../contexts/StoryContext';
 import { useAuth } from './context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 import { uploadImage } from '../utils/imageUpload';
 
@@ -40,7 +41,23 @@ export default function StoryPreviewScreen() {
         throw new Error('Failed to upload image');
       }
 
-      // Add story using context with the remote URL
+      // Insert story into posts table
+      const { data, error } = await supabase
+        .from('posts')
+        .insert({
+          user_id: user.id,
+          media_urls: [uploadedUrl],
+          caption: caption || '',
+          is_story: true,
+          location_name: null, // Optional
+          story_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add story using context with the remote URL (for immediate UI update)
       addUserStory({
         uri: uploadedUrl,
         type: type as 'image' | 'video',
