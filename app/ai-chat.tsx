@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
     View,
     Text,
@@ -16,7 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { sendChatMessage, createSystemPrompt } from '../lib/openai';
 import { useAuth } from './context/AuthContext';
-import { supabase } from '../lib/supabase';
 
 interface ChatMessage {
     id: string;
@@ -30,138 +29,30 @@ export default function AIChatScreen() {
     const { user } = useAuth();
     const flatListRef = useRef<FlatList>(null);
 
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([
+        {
+            id: 'welcome',
+            role: 'assistant',
+            content: 'Hi! I\'m your travel assistant. I can help you plan trips, find destinations, estimate budgets, and give you local tips. What would you like to know?',
+            timestamp: new Date(),
+        },
+    ]);
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [sessionId, setSessionId] = useState<string | null>(null);
-    const [initializing, setInitializing] = useState(true);
 
-    useEffect(() => {
-        if (user) {
-            initializeChat();
-        }
-    }, [user]);
-
-    const initializeChat = async () => {
-        try {
-            // Check for existing active session (most recent)
-            const { data: sessions, error } = await supabase
-                .from('ai_chat_sessions')
-                .select('id')
-                .eq('user_id', user?.id)
-                .order('updated_at', { ascending: false })
-                .limit(1);
-
-            if (error) throw error;
-
-            if (sessions && sessions.length > 0) {
-                // Load existing session
-                const existingSessionId = sessions[0].id;
-                setSessionId(existingSessionId);
-                await loadMessages(existingSessionId);
-            } else {
-                // Create new session
-                await createNewSession();
-            }
-        } catch (error) {
-            console.error('Error initializing chat:', error);
-            Alert.alert('Error', 'Failed to load chat history');
-        } finally {
-            setInitializing(false);
-        }
-    };
-
-    const createNewSession = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('ai_chat_sessions')
-                .insert({
-                    user_id: user?.id,
-                    title: 'New Chat',
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
-
-            setSessionId(data.id);
-            setMessages([
-                {
-                    id: 'welcome',
-                    role: 'assistant',
-                    content: 'Hi! I\'m your travel assistant. I can help you plan trips, find destinations, estimate budgets, and give you local tips. What would you like to know?',
-                    timestamp: new Date(),
-                },
-            ]);
-        } catch (error) {
-            console.error('Error creating session:', error);
-        }
-    };
-
-    const loadMessages = async (sid: string) => {
-        try {
-            const { data, error } = await supabase
-                .from('ai_chat_messages')
-                .select('*')
-                .eq('session_id', sid)
-                .order('created_at', { ascending: true });
-
-            if (error) throw error;
-
-            if (data && data.length > 0) {
-                setMessages(data.map(m => ({
-                    id: m.id,
-                    role: m.role as 'user' | 'assistant',
-                    content: m.content,
-                    timestamp: new Date(m.created_at),
-                })));
-            } else {
-                // If session exists but no messages (shouldn't happen often), show welcome
-                setMessages([
-                    {
-                        id: 'welcome',
-                        role: 'assistant',
-                        content: 'Hi! I\'m your travel assistant. I can help you plan trips, find destinations, estimate budgets, and give you local tips. What would you like to know?',
-                        timestamp: new Date(),
-                    },
-                ]);
-            }
-        } catch (error) {
-            console.error('Error loading messages:', error);
-        }
-    };
-
-    const handleNewChat = async () => {
-        setInitializing(true);
-        await createNewSession();
-        setInitializing(false);
-    };
-
-    const saveChatMessage = async (sid: string, role: 'user' | 'assistant', content: string) => {
-        if (!user) return;
-
-        try {
-            await supabase
-                .from('ai_chat_messages')
-                .insert({
-                    session_id: sid,
-                    role,
-                    content,
-                });
-            
-            // Update session timestamp
-            await supabase
-                .from('ai_chat_sessions')
-                .update({ updated_at: new Date().toISOString() })
-                .eq('id', sid);
-
-        } catch (error) {
-            console.error('Error saving message:', error);
-        }
+    const handleNewChat = () => {
+        setMessages([
+            {
+                id: 'welcome',
+                role: 'assistant',
+                content: 'Hi! I\'m your travel assistant. I can help you plan trips, find destinations, estimate budgets, and give you local tips. What would you like to know?',
+                timestamp: new Date(),
+            },
+        ]);
     };
 
     const handleSendMessage = async () => {
-        if (!inputText.trim() || isLoading || !sessionId) return;
+        if (!inputText.trim() || isLoading) return;
 
         const text = inputText.trim();
         const userMessage: ChatMessage = {
@@ -174,9 +65,6 @@ export default function AIChatScreen() {
         setMessages(prev => [...prev, userMessage]);
         setInputText('');
         setIsLoading(true);
-
-        // Save user message
-        saveChatMessage(sessionId, 'user', text);
 
         try {
             // Prepare messages for OpenAI
@@ -205,9 +93,6 @@ export default function AIChatScreen() {
             };
 
             setMessages(prev => [...prev, assistantMessage]);
-
-            // Save assistant message
-            saveChatMessage(sessionId, 'assistant', aiResponse);
 
         } catch (error: any) {
             console.error('Error getting AI response:', error);
@@ -252,16 +137,6 @@ export default function AIChatScreen() {
             </View>
         );
     };
-
-    if (initializing) {
-        return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#4ECDC4" />
-                </View>
-            </SafeAreaView>
-        );
-    }
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>

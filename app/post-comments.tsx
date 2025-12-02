@@ -181,7 +181,7 @@ export default function PostCommentsScreen() {
             <View style={styles.commentContainer}>
                 <TouchableOpacity onPress={() => router.push('/user-profile' as any)}>
                     <Image
-                        source={{ uri: author?.avatar_url || 'https://i.pravatar.cc/150?img=1' }}
+                        source={{ uri: author?.avatar_url }}
                         style={styles.avatar}
                     />
                 </TouchableOpacity>
@@ -268,7 +268,7 @@ export default function PostCommentsScreen() {
                     )}
                     <View style={styles.inputRow}>
                         <Image
-                            source={{ uri: user?.avatar_url || 'https://i.pravatar.cc/150?img=10' }}
+                            source={{ uri: user?.avatar_url }}
                             style={styles.inputAvatar}
                         />
                         <TextInput

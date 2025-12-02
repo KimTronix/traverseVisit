@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,26 +8,118 @@ import {
     Image,
     TextInput,
     Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useAuth } from './context/AuthContext';
+import { supabase } from '../lib/supabase';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function EditProfileScreen() {
     const router = useRouter();
-    const [name, setName] = useState('Alex Rivera');
-    const [username, setUsername] = useState('alexr');
-    const [bio, setBio] = useState('✈️ Travel enthusiast | 📸 Photography lover | 🌍 Exploring the world');
-    const [location, setLocation] = useState('San Francisco, CA');
-    const [website, setWebsite] = useState('alexrivera.com');
-    const [email, setEmail] = useState('alex@example.com');
-    const [phone, setPhone] = useState('+1 (555) 123-4567');
+    const { user } = useAuth();
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
 
-    const handleSave = () => {
-        Alert.alert('Success', 'Profile updated successfully!', [
-            { text: 'OK', onPress: () => router.back() },
-        ]);
+    const [fullName, setFullName] = useState('');
+    const [username, setUsername] = useState('');
+    const [bio, setBio] = useState('');
+    const [location, setLocation] = useState('');
+    const [website, setWebsite] = useState('');
+    const [avatarUrl, setAvatarUrl] = useState('');
+
+    useEffect(() => {
+        loadUserData();
+    }, [user]);
+
+    const loadUserData = async () => {
+        if (!user) return;
+
+        try {
+            const { data, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (error) throw error;
+
+            if (data) {
+                setFullName(data.full_name || '');
+                setUsername(data.username || '');
+                setBio(data.bio || '');
+                setLocation(data.location || '');
+                setWebsite(data.website || '');
+                setAvatarUrl(data.avatar_url || '');
+            }
+        } catch (error) {
+            console.error('Error loading user data:', error);
+            Alert.alert('Error', 'Failed to load profile data');
+        } finally {
+            setLoading(false);
+        }
     };
+
+    const handleSave = async () => {
+        if (!user) return;
+
+        setSaving(true);
+        try {
+            const { error } = await supabase
+                .from('users')
+                .update({
+                    full_name: fullName,
+                    username: username,
+                    bio: bio,
+                    location: location,
+                    website: website,
+                })
+                .eq('id', user.id);
+
+            if (error) throw error;
+
+            Alert.alert('Success', 'Profile updated successfully!', [
+                { text: 'OK', onPress: () => router.back() },
+            ]);
+        } catch (error: any) {
+            console.error('Error updating profile:', error);
+            Alert.alert('Error', error.message || 'Failed to update profile');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const pickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to make this work!');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.5,
+        });
+
+        if (!result.canceled && result.assets[0]) {
+            // TODO: Upload to Supabase Storage and update profile
+            Alert.alert('Coming Soon', 'Profile photo upload will be implemented with Supabase Storage!');
+        }
+    };
+
+    if (loading) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#4ECDC4" />
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -37,8 +129,12 @@ export default function EditProfileScreen() {
                     <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Edit Profile</Text>
-                <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-                    <Text style={styles.saveText}>Save</Text>
+                <TouchableOpacity onPress={handleSave} style={styles.saveButton} disabled={saving}>
+                    {saving ? (
+                        <ActivityIndicator size="small" color="#4ECDC4" />
+                    ) : (
+                        <Text style={styles.saveText}>Save</Text>
+                    )}
                 </TouchableOpacity>
             </View>
 
@@ -46,10 +142,10 @@ export default function EditProfileScreen() {
                 {/* Profile Photo */}
                 <View style={styles.photoSection}>
                     <Image
-                        source={{ uri: 'https://i.pravatar.cc/150?img=2' }}
+                        source={{ uri: avatarUrl }}
                         style={styles.profilePhoto}
                     />
-                    <TouchableOpacity style={styles.changePhotoButton}>
+                    <TouchableOpacity style={styles.changePhotoButton} onPress={pickImage}>
                         <Text style={styles.changePhotoText}>Change Photo</Text>
                     </TouchableOpacity>
                 </View>
@@ -60,8 +156,8 @@ export default function EditProfileScreen() {
                         <Text style={styles.label}>Name</Text>
                         <TextInput
                             style={styles.input}
-                            value={name}
-                            onChangeText={setName}
+                            value={fullName}
+                            onChangeText={setFullName}
                             placeholder="Enter your name"
                         />
                     </View>
@@ -109,65 +205,6 @@ export default function EditProfileScreen() {
                             autoCapitalize="none"
                             keyboardType="url"
                         />
-                    </View>
-
-                    <View style={styles.divider} />
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Email</Text>
-                        <View style={styles.verifiedInput}>
-                            <TextInput
-                                style={[styles.input, { flex: 1 }]}
-                                value={email}
-                                onChangeText={setEmail}
-                                placeholder="email@example.com"
-                                autoCapitalize="none"
-                                keyboardType="email-address"
-                            />
-                            <View style={styles.verifiedBadge}>
-                                <Ionicons name="checkmark-circle" size={20} color="#4ECDC4" />
-                                <Text style={styles.verifiedText}>Verified</Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Phone</Text>
-                        <View style={styles.verifiedInput}>
-                            <TextInput
-                                style={[styles.input, { flex: 1 }]}
-                                value={phone}
-                                onChangeText={setPhone}
-                                placeholder="+1 (555) 123-4567"
-                                keyboardType="phone-pad"
-                            />
-                            <TouchableOpacity>
-                                <Text style={styles.verifyText}>Verify</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    <View style={styles.divider} />
-
-                    {/* Privacy Settings */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Privacy</Text>
-
-                        <TouchableOpacity style={styles.settingRow}>
-                            <View style={styles.settingLeft}>
-                                <Ionicons name="lock-closed-outline" size={20} color="#666" />
-                                <Text style={styles.settingLabel}>Private Account</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={20} color="#CCC" />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.settingRow}>
-                            <View style={styles.settingLeft}>
-                                <Ionicons name="eye-off-outline" size={20} color="#666" />
-                                <Text style={styles.settingLabel}>Blocked Users</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={20} color="#CCC" />
-                        </TouchableOpacity>
                     </View>
                 </View>
 

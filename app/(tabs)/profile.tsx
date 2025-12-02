@@ -208,7 +208,7 @@ export default function ProfileScreen() {
                     <View style={styles.profileHeader}>
                         <View style={styles.profileImageContainer}>
                             <Image
-                                source={{ uri: userData.avatar_url || 'https://i.pravatar.cc/150?img=12' }}
+                                source={{ uri: userData.avatar_url }}
                                 style={styles.profileImage}
                             />
                             <TouchableOpacity

@@ -151,7 +151,7 @@ export default function HomeScreen() {
           userStoryMap.set(userId, {
             id: userId,
             name: story.users.full_name || story.users.username,
-            image: story.users.avatar_url || 'https://i.pravatar.cc/150?img=1',
+            image: story.media_urls[0], // Use story image, no fallback
             isLive: false,
             hasStory: true,
             stories: []
@@ -170,7 +170,7 @@ export default function HomeScreen() {
       const myStory = {
         id: 'me',
         name: 'Your Story',
-        image: user?.avatar_url || 'https://i.pravatar.cc/150?img=1',
+        image: user?.avatar_url, // No fallback dummy image
         isLive: false,
         hasStory: userStories.length > 0
       };
@@ -202,18 +202,14 @@ export default function HomeScreen() {
 
       if (error) throw error;
 
-      const formattedPosts = data?.map(post => ({
-        id: post.id,
+      const formattedPosts = data.map(post => ({
+        ...post,
         username: post.users?.username || 'User',
-        location: post.location_name || post.users?.location || 'Unknown Location',
-        userImage: post.users?.avatar_url || 'https://i.pravatar.cc/150?img=1',
-        postImage: post.media_urls?.[0] || 'https://via.placeholder.com/400',
-        likes: post.likes_count || 0,
-        caption: post.caption || '',
-        budget: post.min_budget ? `$${post.min_budget}` : null,
-        isPinned: post.is_pinned || false,
-        timestamp: post.created_at
-      })) || [];
+        userImage: post.users?.avatar_url, // No fallback dummy image
+        postImage: post.media_urls[0],
+        location: post.location_name || post.users?.location,
+        budget: post.min_budget
+      }));
 
       setPosts(formattedPosts);
 
@@ -261,7 +257,10 @@ export default function HomeScreen() {
     setShowStoryViewer(false);
   };
 
-  const handleLikePost = (postId: string) => {
+  const handleLikePost = async (postId: string) => {
+    if (!user) return;
+
+    // Optimistic UI update
     setPostLikes(prev => {
       const current = prev[postId] || { count: 0, liked: false };
       const newLiked = !current.liked;
@@ -272,7 +271,47 @@ export default function HomeScreen() {
         [postId]: { count: newCount, liked: newLiked }
       };
     });
-    // TODO: Sync with DB
+
+    try {
+      const current = postLikes[postId] || { count: 0, liked: false };
+      const newLiked = !current.liked;
+
+      if (newLiked) {
+        // Add like
+        await supabase
+          .from('likes')
+          .insert({
+            post_id: postId,
+            user_id: user.id
+          });
+
+        // Increment likes count
+        await supabase.rpc('increment_likes_count', { post_id: postId });
+      } else {
+        // Remove like
+        await supabase
+          .from('likes')
+          .delete()
+          .eq('post_id', postId)
+          .eq('user_id', user.id);
+
+        // Decrement likes count
+        await supabase.rpc('decrement_likes_count', { post_id: postId });
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      // Revert optimistic update on error
+      setPostLikes(prev => {
+        const current = prev[postId] || { count: 0, liked: false };
+        const revertLiked = !current.liked;
+        const revertCount = revertLiked ? current.count + 1 : current.count - 1;
+
+        return {
+          ...prev,
+          [postId]: { count: revertCount, liked: revertLiked }
+        };
+      });
+    }
   };
 
   const handleComment = (post: any) => {
@@ -359,17 +398,6 @@ export default function HomeScreen() {
         >
           <View style={styles.storiesHeader}>
             <Text style={styles.sectionTitle}>Stories & Live</Text>
-            <TouchableOpacity
-              style={styles.watchAllButton}
-              onPress={() => {
-                if (userStories.length > 0) {
-                  setCurrentStoryIndex(0);
-                  setShowStoryViewer(true);
-                }
-              }}
-            >
-              <Text style={styles.watchAllText}>Watch All</Text>
-            </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storiesScroll}>
             {stories.map((story) => (
